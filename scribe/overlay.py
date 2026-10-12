@@ -452,11 +452,6 @@ class Bridge(QObject):
             set_input_region(int(self.window.winId()), None)
 
     @Slot()
-    def dismissImage(self):
-        self.r.dismiss_image()
-        self.imageChanged.emit()
-
-    @Slot()
     def quit(self):
         self.r.player.pause = True        # R11: silêncio já no clique
         self.app.quit()

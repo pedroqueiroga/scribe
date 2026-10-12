@@ -668,8 +668,6 @@ Window {
                 asynchronous: true
                 smooth: true; mipmap: true
             }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                        onClicked: reader.dismissImage() }
         }
 
         // ------------------------------------------------------------ miniatura (J17)

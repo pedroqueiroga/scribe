@@ -28,7 +28,7 @@ Verificação manual (rodando o app).
   linha de progresso só responde fora dela. A imagem (**J6**)
   termina acima da faixa.
 - **J6 —** As imagens aparecem ao lado do texto, nunca por cima (detalhes em
-  [layout.md](layout.md)), com transição suave. Clicar na imagem fecha.
+  [layout.md](layout.md)), com transição suave. Clicar na imagem não a fecha: ela some sozinha (**R5**).
 - **J7 —** A fonte é a Roboto embutida no EPUB, quando houver.
 - **J8 —** Atalhos globais (exclusivos do scribe, via X11):
 
