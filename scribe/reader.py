@@ -11,8 +11,8 @@ import re
 
 from .align import NARRATED, SKIPPED
 
-IMAGE_LEAD = 5.0     # R5: a imagem entra esses segundos antes da hora dela
-IMAGE_HOLD = 20.0    # R5: e sai esses segundos depois
+IMAGE_LEAD = 1.0     # R5: a imagem entra esses segundos antes da hora dela
+IMAGE_HOLD = 10.0    # R5: e sai esses segundos depois
 SPEEDS = [0.75, 0.9, 1.0, 1.1, 1.25, 1.4, 1.5, 1.75, 2.0]  # R4
 JUMP_THRESHOLD = 2.0       # salto maior que isso entre ticks é um pulo (R5, R7)
 NOTIFY_EVERY = 5.0         # R7

@@ -162,7 +162,7 @@ def test_R5_imagem_entra_antes_da_hora_e_sai_depois(tmp_path, lib):
 
 
 def test_R5_margens(tmp_path, lib):
-    assert (IMAGE_LEAD, IMAGE_HOLD) == (5.0, 20.0)
+    assert (IMAGE_LEAD, IMAGE_HOLD) == (1.0, 10.0)
 
 
 def test_R5_pulo_para_dentro_da_janela_mostra(tmp_path, lib):
@@ -170,7 +170,7 @@ def test_R5_pulo_para_dentro_da_janela_mostra(tmp_path, lib):
     t_img = session.image_time(1)
     reader.seek(t_img + 5.0)
     assert reader.image == "fig.png"
-    player.time_pos = t_img - 2.0          # pulo feito pelo próprio tocador
+    player.time_pos = t_img - IMAGE_LEAD / 2   # pulo feito pelo próprio tocador
     reader.tick()
     assert reader.image == "fig.png"
 
@@ -571,7 +571,7 @@ def test_R14_outro_capitulo_nao_herda_a_imagem(tmp_path, lib):
         w["id"] = nxt + i
     bid, _ = lib.resolve([str(tmp_path / "l.epub"), str(tmp_path / "l.m4b")])
     session = Session(book, lib.cache(bid), duration=120.0, audio_chapters=[])
-    session.handle({"type": "segment", "seg": {"s": 0.0, "e": 120.0, "words": narrate(P1, P2, 1.0, P3)}})
+    session.handle({"type": "segment", "seg": {"s": 0.0, "e": 120.0, "words": narrate(P1, 1.0, P3)}})   # P2 não narrado: o capítulo 2 começa logo
     player = FakePlayer(120.0)
     reader = Reader(session, player, lib, bid)
     play_to(reader, player, session.image_time(1) + 0.5)

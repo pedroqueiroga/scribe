@@ -14,8 +14,8 @@ com um tocador falso.
 - **R4 — Velocidade** anda em degraus fixos (0,75× a 2×), sem passar dos extremos, e é
   lembrada por livro.
 - **R5 — Imagem à mostra.** A imagem fica à mostra numa janela de tempo em volta da hora
-  dela (**S4**, em [session.md](session.md)): entra 5 s antes, para encaixar com o fim da
-  leitura do texto que a precede, e sai 20 s depois. Vale o mesmo nos dois modos da janela
+  dela (**S4**, em [session.md](session.md)): entra 1 s antes, para encaixar com o fim da
+  leitura do texto que a precede, e sai 10 s depois. Vale o mesmo nos dois modos da janela
   (ao lado do texto, **J6**; miniatura, **J17**). A regra depende só da posição de escuta:
   com o áudio pausado a imagem continua como está, e depois de um pulo vale a posição nova
   (cair dentro da janela de uma imagem a mostra; cair fora a esconde). Quando a janela da
