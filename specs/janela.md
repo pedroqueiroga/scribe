@@ -25,8 +25,7 @@ Verificação manual (rodando o app).
   baixo da barra, mas a faixa não é clicável para o texto: cliques nela são só da barra
   (ou arrastam a janela), então barra e palavras nunca disputam o mouse. Barra e linha de
   progresso também não disputam: com o mouse sobre a barra, o clique é sempre da barra, e a
-  linha de progresso só responde fora dela (isso importa no modo de uma linha, em que as
-  duas se encostam). A imagem (**J6**)
+  linha de progresso só responde fora dela. A imagem (**J6**)
   termina acima da faixa.
 - **J6 —** As imagens aparecem ao lado do texto, nunca por cima (detalhes em
   [layout.md](layout.md)), com transição suave. Clicar na imagem fecha.
@@ -55,8 +54,10 @@ Verificação manual (rodando o app).
   da fonte. A largura da linha é decidida por quem redimensiona a janela.
 - **J14 —** No modo de uma linha ([oneline.md](oneline.md)), aparece só a linha que está
   sendo narrada, centralizada na altura, com o karaokê. A troca de linha desliza. A barra
-  aparece ao passar o mouse, encostada à direita por cima do fim da linha, sem o título do
-  capítulo, e as palavras à esquerda continuam clicáveis. A altura mínima da janela é a de
+  aparece ao passar o mouse, **fora** da faixa, numa janelinha própria encostada à direita:
+  logo abaixo da faixa, ou acima se não couber na tela. Ela nunca cobre o texto, e passar
+  o mouse da faixa para a barra (e de volta) não a faz sumir. Não mostra o título do
+  capítulo. O menu de fundo (**J15**) abre numa janela própria, fora da faixa. A altura mínima da janela é a de
   uma linha. Títulos e notas usam o mesmo tamanho do texto (os títulos continuam em
   negrito), para que toda linha caiba exatamente na faixa.
 - **J15 —** Um quadradinho na barra mostra o fundo atual (a cor, ou uma miniatura da
@@ -69,6 +70,6 @@ Verificação manual (rodando o app).
   narração passa por uma imagem, uma miniatura pequena aparece na ponta direita da faixa,
   com um pulso discreto, e o texto termina antes dela, sem ser coberto. Passar o mouse
   sobre a miniatura abre a imagem grande num balão **fora** da faixa, acima dela se houver
-  espaço na tela, ou abaixo. Clicar na miniatura deixa o balão aberto até um novo clique.
-  A miniatura mostra a imagem recente (**R14**). Com a barra à mostra, a miniatura fica
-  logo à esquerda dela.
+  espaço na tela, ou abaixo. O balão nunca fica no lugar da barra (**J14**): se a barra
+  estiver do mesmo lado, ele fica além dela. Clicar na miniatura deixa o balão aberto até
+  um novo clique. A miniatura mostra a imagem recente (**R14**).

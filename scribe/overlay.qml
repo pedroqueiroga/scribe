@@ -25,7 +25,13 @@ Window {
     }
     // HoverHandler no painel: recebe a passagem do mouse mesmo com o cursor sobre o texto
     // (a MouseArea de fundo perdia o hover para os parágrafos, e a barra não aparecia)
-    property bool hovering: panelHover.hovered || barHover.hovered
+    property bool hovering: panelHover.hovered || barHover.hovered || popHover.hovered
+    // J5/J14: a barra some com um pequeno atraso, para o mouse atravessar o vão até a
+    // janela da barra no modo de uma linha (e de volta) sem ela sumir no caminho
+    readonly property bool barWanted: (hovering || bgMenu.opened) && !reader.passClicks
+    property bool barShown: false
+    onBarWantedChanged: if (barWanted) { barHide.stop(); barShown = true } else barHide.restart()
+    Timer { id: barHide; interval: 350; onTriggered: win.barShown = false }
 
     width: 760; height: 300
     minimumWidth: 320; minimumHeight: reader.onelineHeight
@@ -129,16 +135,16 @@ Window {
         readonly property real ratio: popImg.implicitHeight > 0 ? popImg.implicitWidth / popImg.implicitHeight : 1.4
         width: Math.round(Math.min(maxW, maxH * ratio)) + 16
         height: Math.round(Math.min(maxH, maxW / ratio)) + 16
-        function place() {
-            const g = thumb.mapToGlobal(0, 0)
-            const top = win.screen.virtualY
-            const left = win.screen.virtualX
-            const right = left + win.screen.width
-            x = Math.max(left, Math.min(right - width, g.x + thumb.width - width))
-            const above = g.y - height - 10
-            y = above >= top ? above : g.y + thumb.height + 10      // acima se couber, senão abaixo
+        // acima se couber, senão abaixo; nunca no lugar da barra (J14): fica do outro lado
+        // dela ou, se a tela obrigar os dois ao mesmo lado, depois dela
+        x: Math.max(win.screen.virtualX, Math.min(win.screen.virtualX + win.screen.width - width,
+                                                  win.x + thumb.x + thumb.width - width))
+        y: {
+            const upEdge = barPop.below ? win.y : barPop.y
+            const downEdge = barPop.below ? barPop.y + barPop.height : win.y + win.height
+            const above = upEdge - height - 8
+            return above >= win.screen.virtualY ? above : downEdge + 8
         }
-        onVisibleChanged: if (visible) place()
         Rectangle {
             anchors.fill: parent
             radius: 10
@@ -152,6 +158,24 @@ Window {
                 smooth: true; mipmap: true
             }
         }
+    }
+
+    // J14: no modo de uma linha a barra mora numa janelinha própria, encostada à direita,
+    // logo abaixo da faixa (ou acima, se não couber na tela): nunca cobre o texto
+    Window {
+        id: barPop
+        flags: Qt.ToolTip | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+        color: "transparent"
+        readonly property int gap: 6
+        width: bar.width + 14
+        height: 34
+        readonly property bool below: win.y + win.height + gap + height
+                                      <= win.screen.virtualY + win.screen.height
+        x: Math.max(win.screen.virtualX, Math.min(win.screen.virtualX + win.screen.width - width,
+                                                  win.x + win.width - width))
+        y: below ? win.y + win.height + gap : win.y - gap - height
+        visible: win.oneline && win.visible && bar.visible
+        Item { anchors.fill: parent; HoverHandler { id: popHover } }
     }
 
     // G: a janela cresce para a direita para a imagem e depois volta
@@ -416,20 +440,20 @@ Window {
             z: 2
             anchors { left: parent.left; right: parent.right; bottom: progress.top }
             anchors.leftMargin: win.pad
-            anchors.rightMargin: win.pad - 6 + (thumb.visible ? thumb.width + 10 : 0)   // J17
-            // no modo de uma linha com fonte pequena, encolhe para caber acima do progresso
-            height: win.oneline ? Math.min(34, win.height - 12) : 34
-            opacity: win.hovering && !reader.passClicks ? 1 : 0
+            anchors.rightMargin: win.pad - 6
+            height: 34
+            opacity: win.barShown ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: 180 } }
             HoverHandler { id: barHover }
             states: State {
+                // J14: a barra vai para a janela própria (barPop), fora da faixa
                 name: "oneline"; when: win.oneline
                 AnchorChanges {
-                    // continua logo acima da linha de progresso: as duas nunca se sobrepõem
                     target: bar
-                    anchors.left: undefined
+                    anchors.left: undefined; anchors.right: undefined; anchors.bottom: undefined
                 }
+                ParentChange { target: bar; parent: barPop.contentItem; x: 10; y: 0 }
                 PropertyChanges { target: bar; width: controls.implicitWidth + 8 }
             }
 
@@ -438,7 +462,7 @@ Window {
                 anchors.fill: parent
                 anchors.leftMargin: -10; anchors.rightMargin: -4
                 radius: 8
-                // no modo de uma linha a barra fica por cima do texto: fundo opaco
+                // no modo de uma linha a barra fica solta fora da janela: fundo opaco
                 color: Qt.rgba(0.082, 0.075, 0.122, win.oneline ? 1 : Math.max(0.8, reader.bgOpacity))
             }
 
@@ -567,7 +591,7 @@ Window {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: bgMenu.popup()
+                        onClicked: bgMenu.popup(bgSwatch, 0, bgSwatch.height + 6)
                     }
                 }
                 Btn { text: "◐ " + Math.round(reader.bgOpacity * 100) + "%"
@@ -655,7 +679,6 @@ Window {
             z: 3
             visible: win.oneline && reader.recentImage !== ""
             anchors.verticalCenter: list.verticalCenter
-            // fica sempre no mesmo lugar: a barra aparece à esquerda dela (nada pula sob o cursor)
             anchors.right: parent.right
             anchors.rightMargin: win.pad - 8
             height: Math.min(win.lineH, 30); width: height * 1.4
@@ -804,6 +827,8 @@ Window {
     Menu {
         id: bgMenu
         objectName: "bgMenu"
+        // janela própria: no modo de uma linha o menu não cabe na faixa nem na barra
+        popupType: Popup.Window
         background: Rectangle {
             implicitWidth: 190
             color: win.ink; radius: 8
