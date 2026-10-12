@@ -28,7 +28,8 @@ Verificação manual (rodando o app).
   linha de progresso só responde fora dela. A imagem (**J6**)
   termina acima da faixa.
 - **J6 —** As imagens aparecem ao lado do texto, nunca por cima (detalhes em
-  [layout.md](layout.md)), com transição suave. Clicar na imagem não a fecha: ela some sozinha (**R5**).
+  [layout.md](layout.md)), com transição suave. Clicar na imagem não a fecha: ela entra e sai sozinha (**R5**). Abrir o app ou voltar
+  ao modo de várias linhas com uma imagem à mostra também abre o espaço dela.
 - **J7 —** A fonte é a Roboto embutida no EPUB, quando houver.
 - **J8 —** Atalhos globais (exclusivos do scribe, via X11):
 
@@ -66,10 +67,10 @@ Verificação manual (rodando o app).
   arredondadas, sem distorcer.
 - **J16 —** Os seletores de cor e de arquivo só são criados quando a pessoa pede para usá-los.
   Um problema no serviço de diálogos do sistema nunca impede o app de abrir.
-- **J17 —** Imagens no modo de uma linha: nada aparece sem a pessoa pedir. Quando a
-  narração passa por uma imagem, uma miniatura pequena aparece na ponta direita da faixa,
-  com um pulso discreto, e o texto termina antes dela, sem ser coberto. Passar o mouse
-  sobre a miniatura abre a imagem grande num balão **fora** da faixa, acima dela se houver
-  espaço na tela, ou abaixo. O balão nunca fica no lugar da barra (**J14**): se a barra
-  estiver do mesmo lado, ele fica além dela. Clicar na miniatura deixa o balão aberto até
-  um novo clique. A miniatura mostra a imagem recente (**R14**).
+- **J17 —** Imagens no modo de uma linha: a imagem à mostra (**R5**) vira uma miniatura
+  pequena na ponta direita da faixa, que entra com um pulso discreto, e o texto termina
+  antes dela, sem ser coberto. Fora da janela de tempo da imagem não há miniatura. Passar
+  o mouse sobre a miniatura abre a imagem grande num balão **fora** da faixa, acima dela
+  se houver espaço na tela, ou abaixo. O balão nunca fica no lugar da barra (**J14**): se
+  a barra estiver do mesmo lado, ele fica além dela. Clicar na miniatura deixa o balão
+  aberto até um novo clique ou até a imagem sair.

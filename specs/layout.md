@@ -2,7 +2,7 @@
 
 Testes: [`tests/test_layout.py`](../tests/test_layout.py)
 
-Quando a narração passa por uma ilustração (**R5**, em [reader.md](reader.md)), a imagem
+Quando uma ilustração está à mostra (**R5**, em [reader.md](reader.md)), a imagem
 aparece **ao lado** do texto, nunca por cima dele. O ideal é a janela abrir espaço para a
 imagem crescendo para a direita, sem mexer na largura do texto. As decisões de tamanho são
 uma função pura, que recebe a geometria da janela e da tela.

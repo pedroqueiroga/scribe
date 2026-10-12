@@ -132,7 +132,6 @@ class Bridge(QObject):
         self.cache = cache
         self._row = reader.current_row
         self._status = ""
-        self._recent = None               # R14: imagem recente (miniatura do modo de uma linha)
         self.layout = ImageLayout()
         self._panel = (0.0, 0.0)
         self.timer = QTimer(self)
@@ -152,7 +151,7 @@ class Bridge(QObject):
             self.model.refresh_rows(self._row, self.r.current_row)
             self._row = self.r.current_row
             self.currentChanged.emit()
-        if "image" in changed or self._update_recent():
+        if "image" in changed:
             self.imageChanged.emit()
         if "position" in changed:
             self.positionChanged.emit()
@@ -168,21 +167,9 @@ class Bridge(QObject):
         return {"idle": "", "loading": "carregando o modelo…", "running": "transcrevendo…",
                 "error": "erro na transcrição", "done": ""}.get(s.worker_state, "")
 
-    def _update_recent(self) -> bool:
-        rec = self.r.recent_image()
-        if rec != self._recent:
-            self._recent = rec
-            return True
-        return False
-
-    @Property(str, notify=imageChanged)
-    def recentImage(self):                            # R14 / J17
-        return image_url(self.cache, self._recent) if self._recent else ""
-
     def _after_nav(self):
-        self._update_recent()
         self.jumped.emit()
-        self.imageChanged.emit()          # um pulo pode ter escondido a imagem (R5)
+        self.imageChanged.emit()          # um pulo pode ter mudado a imagem (R5)
         self.model.refresh_rows(self._row, self.r.current_row)
         self._row = self.r.current_row
         self.currentChanged.emit()

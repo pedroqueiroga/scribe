@@ -130,6 +130,6 @@ def test_G4_ao_esconder_a_imagem_a_interface_e_avisada_que_o_texto_volta(tmp_pat
     assert bridge.imagePanelWidth > 0
     avisos = []
     bridge.imageChanged.connect(lambda: avisos.append(bridge.imagePanelWidth))
-    reader.dismiss_image()
+    reader.image = None
     assert bridge.restoreWidth() == 700
     assert avisos and avisos[-1] == 0

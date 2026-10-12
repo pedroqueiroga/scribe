@@ -9,7 +9,7 @@ Testes: [`tests/test_session.py`](../tests/test_session.py)
   sincronizando.
 - **S3 — Atualização ao vivo.** Quando chega um pedaço novo do worker, os tempos são
   recalculados e a versão da linha do tempo aumenta.
-- **S4 — Hora da imagem.** Uma imagem aparece quando a narração termina o último texto
+- **S4 — Hora da imagem.** A hora de uma imagem é o fim do último texto
   narrado antes dela.
 - **S5 — Alinhamento final.** Quando a transcrição termina e houve pedaços novos durante
   a sessão, o alinhamento global é refeito.

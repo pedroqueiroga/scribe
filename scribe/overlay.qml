@@ -56,6 +56,7 @@ Window {
         if (reader.passClicks) {                 // abriu já atravessando: aplica e avisa
             Qt.callLater(updateInputRegion)
         }
+        Qt.callLater(syncImage)                  // abriu dentro da janela de uma imagem (R5)
     }
     onXChanged: saveGeo.restart()
     onYChanged: saveGeo.restart()
@@ -88,11 +89,8 @@ Window {
             list.requestFollow(false)
         }
     }
-    // trocar para uma linha com a imagem à mostra devolve a largura (J14)
-    onOnelineChanged: if (oneline && reader.imagePanelWidth > 0) {
-        const w = reader.restoreWidth()
-        if (w > 0) width = w
-    }
+    // trocar de modo com a imagem à mostra abre ou devolve o espaço dela (J14, G)
+    onOnelineChanged: syncImage()
     // O1: sonda invisível que mede a altura real de uma linha do texto exibido
     Text {
         id: lineProbe
@@ -112,16 +110,16 @@ Window {
         }
     }
 
-    // J17: balão da imagem recente, fora da faixa
+    // J17: balão da imagem à mostra, fora da faixa
     property bool imgPinned: false
-    property string lastRecent: ""
+    property string lastThumb: ""
     Connections {
         target: reader
         function onImageChanged() {
-            if (reader.recentImage !== win.lastRecent) {
+            if (reader.image !== win.lastThumb) {
                 win.imgPinned = false
-                if (reader.recentImage !== "" && win.oneline && reader.image !== "") pulse.restart()
-                win.lastRecent = reader.recentImage
+                if (reader.image !== "" && win.oneline) pulse.restart()
+                win.lastThumb = reader.image
             }
         }
     }
@@ -153,7 +151,7 @@ Window {
             Image {
                 id: popImg
                 anchors.fill: parent; anchors.margins: 8
-                source: reader.recentImage
+                source: reader.image
                 fillMode: Image.PreserveAspectFit
                 smooth: true; mipmap: true
             }
@@ -179,20 +177,24 @@ Window {
     }
 
     // G: a janela cresce para a direita para a imagem e depois volta
-    property string shownImage: ""
+    property string shownImage: ""          // imagem com espaço aberto ao lado do texto
+    function syncImage() {
+        // pela altura, e não por `oneline`: na abertura a ligação ainda não se atualizou
+        const many = win.height >= reader.onelineThreshold
+        const want = reader.image !== "" && many ? reader.image : ""
+        if (want === win.shownImage) return
+        win.shownImage = want
+        if (want !== "") {
+            win.width = reader.layoutImage(win.x, win.width, win.height - win.dock,
+                                           win.screen.virtualX + win.screen.width)
+        } else {
+            const w = reader.restoreWidth()
+            if (w > 0) win.width = w
+        }
+    }
     Connections {
         target: reader
-        function onImageChanged() {
-            if (reader.image === win.shownImage) return
-            win.shownImage = reader.image
-            if (reader.image !== "" && !win.oneline) {
-                win.width = reader.layoutImage(win.x, win.width, win.height - win.dock,
-                                               win.screen.virtualX + win.screen.width)
-            } else {
-                const w = reader.restoreWidth()
-                if (w > 0) win.width = w
-            }
-        }
+        function onImageChanged() { win.syncImage() }
     }
 
     // ------------------------------------------------------------ painel
@@ -675,7 +677,7 @@ Window {
             id: thumb
             objectName: "thumb"
             z: 3
-            visible: win.oneline && reader.recentImage !== ""
+            visible: win.oneline && reader.image !== ""
             anchors.verticalCenter: list.verticalCenter
             anchors.right: parent.right
             anchors.rightMargin: win.pad - 8
@@ -690,7 +692,7 @@ Window {
                 clip: true
                 Image {
                     anchors.fill: parent; anchors.margins: 1
-                    source: reader.recentImage
+                    source: reader.image
                     fillMode: Image.PreserveAspectCrop
                     sourceSize.height: 96
                     asynchronous: true

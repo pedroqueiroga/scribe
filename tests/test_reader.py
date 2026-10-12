@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 
 from scribe.library import Library
-from scribe.reader import IMAGE_SECONDS, SPEEDS, Reader
+from scribe.reader import IMAGE_HOLD, IMAGE_LEAD, SPEEDS, Reader
 from scribe.session import Session
 from tests.helpers import all_words, make_book, narrate
 
@@ -148,34 +148,35 @@ def test_R4_velocidade_lembrada_por_livro(tmp_path, lib):
 
 # ---------------------------------------------------------------- R5
 
-def test_R5_imagem_aparece_ao_passar_e_some_depois_de_7s(tmp_path, lib):
-    reader, player, session, *_ , tr = build(tmp_path, lib, P1, "img:fig.png", P2)
+def test_R5_imagem_entra_antes_da_hora_e_sai_depois(tmp_path, lib):
+    reader, player, session, *_ = build(tmp_path, lib, P1, "img:fig.png", P2)
     t_img = session.image_time(1)
-    play_to(reader, player, t_img + 0.3)
+    play_to(reader, player, t_img - IMAGE_LEAD - 0.5)
+    assert reader.image is None
+    play_to(reader, player, t_img - IMAGE_LEAD + 0.3)
     assert reader.image == "fig.png"
-    play_to(reader, player, t_img + IMAGE_SECONDS + 0.5)
+    play_to(reader, player, t_img + IMAGE_HOLD - 0.5)
+    assert reader.image == "fig.png"
+    play_to(reader, player, t_img + IMAGE_HOLD + 0.5)
     assert reader.image is None
 
 
-def test_R5_atravessar_a_imagem_com_um_pulo_nao_mostra(tmp_path, lib):
+def test_R5_margens(tmp_path, lib):
+    assert (IMAGE_LEAD, IMAGE_HOLD) == (5.0, 20.0)
+
+
+def test_R5_pulo_para_dentro_da_janela_mostra(tmp_path, lib):
     reader, player, session, *_ = build(tmp_path, lib, P1, "img:fig.png", P2)
     t_img = session.image_time(1)
     reader.seek(t_img + 5.0)
-    play_to(reader, player, t_img + 6.0)
-    assert reader.image is None
-
-
-def test_R5_pulo_externo_por_cima_da_imagem_nao_mostra(tmp_path, lib):
-    reader, player, session, *_ = build(tmp_path, lib, P1, "img:fig.png", P2)
-    t_img = session.image_time(1)
-    play_to(reader, player, t_img - 1.0)
-    player.time_pos = t_img + 5.0          # pulo feito pelo próprio tocador
+    assert reader.image == "fig.png"
+    player.time_pos = t_img - 2.0          # pulo feito pelo próprio tocador
     reader.tick()
-    assert reader.image is None
+    assert reader.image == "fig.png"
 
 
-@pytest.mark.parametrize("jump", [-10.0, -300.0, +30.0])
-def test_R5_pulo_pelo_leitor_esconde_a_imagem(tmp_path, lib, jump):
+@pytest.mark.parametrize("jump", [-30.0, -300.0, +30.0])
+def test_R5_pulo_para_fora_da_janela_esconde(tmp_path, lib, jump):
     reader, player, session, *_ = build(tmp_path, lib, P1, "img:fig.png", P2)
     play_to(reader, player, session.image_time(1) + 0.3)
     assert reader.image == "fig.png"
@@ -183,7 +184,7 @@ def test_R5_pulo_pelo_leitor_esconde_a_imagem(tmp_path, lib, jump):
     assert reader.image is None
 
 
-def test_R5_pulo_pelo_tocador_esconde_a_imagem(tmp_path, lib):
+def test_R5_pulo_pelo_tocador_para_fora_esconde(tmp_path, lib):
     reader, player, session, *_ = build(tmp_path, lib, P1, "img:fig.png", P2)
     t_img = session.image_time(1)
     play_to(reader, player, t_img + 0.3)
@@ -192,7 +193,7 @@ def test_R5_pulo_pelo_tocador_esconde_a_imagem(tmp_path, lib):
     assert reader.image is None
 
 
-def test_R5_clicar_numa_palavra_esconde_a_imagem(tmp_path, lib):
+def test_R5_clicar_numa_palavra_longe_esconde_a_imagem(tmp_path, lib):
     reader, player, session, *_ = build(tmp_path, lib, P1, "img:fig.png", P2)
     play_to(reader, player, session.image_time(1) + 0.3)
     reader.seek_word(0, 0)
@@ -208,11 +209,16 @@ def test_R5_pausado_a_imagem_continua(tmp_path, lib):
     assert reader.image == "fig.png"
 
 
-def test_R5_fechar_a_imagem(tmp_path, lib):
-    reader, player, session, *_ = build(tmp_path, lib, P1, "img:fig.png", P2)
-    play_to(reader, player, session.image_time(1) + 0.3)
-    reader.dismiss_image()
-    assert reader.image is None
+def test_R5_proxima_imagem_substitui(tmp_path, lib):
+    reader, player, session, *_ = build(tmp_path, lib, P1, "img:a.png", P2, "img:b.png", P3)
+    t_a, t_b = session.image_time(1), session.image_time(3)
+    assert t_b - IMAGE_LEAD < t_a + IMAGE_HOLD       # janelas sobrepostas
+    play_to(reader, player, t_a + 0.5)
+    assert reader.image == "a.png"
+    play_to(reader, player, t_b - IMAGE_LEAD + 0.3)
+    assert reader.image == "b.png"
+    reader.seek(t_b - IMAGE_LEAD - 1.0)              # voltar devolve a anterior
+    assert reader.image == "a.png"
 
 
 # ---------------------------------------------------------------- R6
@@ -553,26 +559,6 @@ def test_R13_depois_do_trecho_a_janela_nao_volta_para_a_palavra_anterior(tmp_pat
 
 # ---------------------------------------------------------------- R14
 
-def test_R14_imagem_recente_e_a_ultima_que_a_narracao_passou(tmp_path, lib):
-    reader, player, session, *_ = build(tmp_path, lib, P1, "img:a.png", P2, "img:b.png", P3)
-    assert reader.recent_image() is None
-    play_to(reader, player, session.image_time(1) + 0.5)
-    assert reader.recent_image() == "a.png"
-    play_to(reader, player, session.image_time(3) - 1.0)
-    assert reader.recent_image() == "a.png"            # continua até a próxima
-    play_to(reader, player, session.image_time(3) + 0.5)
-    assert reader.recent_image() == "b.png"
-
-
-def test_R14_voltar_para_antes_da_imagem_volta_a_anterior(tmp_path, lib):
-    reader, player, session, *_ = build(tmp_path, lib, P1, "img:a.png", P2, "img:b.png", P3)
-    play_to(reader, player, session.image_time(3) + 0.5)
-    reader.seek(session.image_time(3) - 2.0)
-    assert reader.recent_image() == "a.png"
-    reader.seek(0.0)
-    assert reader.recent_image() is None
-
-
 def test_R14_outro_capitulo_nao_herda_a_imagem(tmp_path, lib):
     from tests.helpers import make_book as mb
     book = mb(P1, "img:a.png", P2)
@@ -589,10 +575,11 @@ def test_R14_outro_capitulo_nao_herda_a_imagem(tmp_path, lib):
     player = FakePlayer(120.0)
     reader = Reader(session, player, lib, bid)
     play_to(reader, player, session.image_time(1) + 0.5)
-    assert reader.recent_image() == "a.png"
+    assert reader.image == "a.png"
     p3_start = session.block_start(session.blocks[3])
+    assert p3_start + 0.5 < session.image_time(1) + IMAGE_HOLD   # ainda dentro da janela
     play_to(reader, player, p3_start + 0.5)
-    assert reader.recent_image() is None
+    assert reader.image is None
 
 
 def test_R14_imagem_em_secao_propria_pertence_ao_capitulo_anterior(tmp_path, lib):
@@ -608,5 +595,5 @@ def test_R14_imagem_em_secao_propria_pertence_ao_capitulo_anterior(tmp_path, lib
     player = FakePlayer(120.0)
     reader = Reader(session, player, lib, bid)
     play_to(reader, player, session.image_time(nxt_block) + 0.5)
-    assert reader.recent_image() == "fig.png"
+    assert reader.image == "fig.png"
 

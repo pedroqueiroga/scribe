@@ -11,7 +11,8 @@ import re
 
 from .align import NARRATED, SKIPPED
 
-IMAGE_SECONDS = 7.0                                        # R5
+IMAGE_LEAD = 5.0     # R5: a imagem entra esses segundos antes da hora dela
+IMAGE_HOLD = 20.0    # R5: e sai esses segundos depois
 SPEEDS = [0.75, 0.9, 1.0, 1.1, 1.25, 1.4, 1.5, 1.75, 2.0]  # R4
 JUMP_THRESHOLD = 2.0       # salto maior que isso entre ticks é um pulo (R5, R7)
 NOTIFY_EVERY = 5.0         # R7
@@ -50,10 +51,10 @@ class Reader:
         self.current_word: int | None = None
         self.current_extra: tuple[int, int] | None = None   # R13
         self.image: str | None = None
-        self._image_until = 0.0
         self._images_version = -1
         self._images: list[tuple[float, str]] = []
         self._sync(self.position)
+        self._update_image()
 
     # ---------------------------------------------------------------- laço
 
@@ -69,23 +70,13 @@ class Reader:
         jumped = abs(t - last) > JUMP_THRESHOLD
         if jumped or int(t // NOTIFY_EVERY) != int(last // NOTIFY_EVERY):   # R7
             self.session.update_playhead(t)
-        if jumped and self.image:                                          # R5: pulo esconde
-            self.image = None
-            changed.add("image")
-        if not jumped and t > last:
-            src = self._image_between(last, t)                             # R5
-            if src:
-                self.image = src
-                self._image_until = t + IMAGE_SECONDS
-                changed.add("image")
-        if self.image and t > self._image_until:
-            self.image = None
-            changed.add("image")
         self._last_t = t
         self.position = t
         changed.add("position")
         if self._sync(t, force="timings" in changed):
             changed.add("current")
+        if self._update_image():
+            changed.add("image")
         return changed
 
     def _sync(self, t: float, force: bool = False) -> bool:
@@ -123,34 +114,33 @@ class Reader:
                 return b["chapter"]
         return self.session.blocks[row]["chapter"]
 
-    def _image_between(self, t0: float, t1: float) -> str | None:
-        imgs = self._ensure_images()
-        times = [ts for ts, _, _ in imgs]
-        k = bisect.bisect_right(times, t0)
-        if k < len(imgs) and imgs[k][0] <= t1:
-            return imgs[k][1]
-        return None
+    def _update_image(self) -> bool:
+        """R5: a imagem à mostra depende só da posição; True se mudou."""
+        src = self._image_at(self.position)
+        if src == self.image:
+            return False
+        self.image = src
+        return True
 
-    def recent_image(self) -> str | None:                                  # R14
-        if self.current_row < 0:
-            return None
-        chapter = self.session.blocks[self.current_row]["chapter"]
+    def _image_at(self, t: float) -> str | None:
         imgs = self._ensure_images()
-        k = bisect.bisect_right([ts for ts, _, _ in imgs], self.position) - 1
-        if k >= 0 and imgs[k][2] == chapter:
-            return imgs[k][1]
-        return None
+        k = bisect.bisect_right([ts for ts, _, _ in imgs], t + IMAGE_LEAD) - 1
+        if k < 0 or t > imgs[k][0] + IMAGE_HOLD:
+            return None
+        if self.current_row < 0 or self.session.blocks[self.current_row]["chapter"] != imgs[k][2]:
+            return None                                                    # R14
+        return imgs[k][1]
 
     # ---------------------------------------------------------------- navegação
 
     def seek(self, t: float):
         t = max(0.0, min(self.session.duration - 0.5, t))
         self.player.seek(t)
-        self.image = None                                                  # R5: pulo esconde
         self.position = t
         self._last_t = t
         self.session.update_playhead(t)                                    # R7
         self._sync(t, force=True)
+        self._update_image()                                               # R5
 
     def skip(self, dt: float):                                             # R3
         self.seek(self.position + dt)
@@ -198,9 +188,6 @@ class Reader:
         self.player.speed = SPEEDS[max(0, min(len(SPEEDS) - 1, i + step))]
         self.entry["speed"] = self.player.speed
         self.lib.save()
-
-    def dismiss_image(self):
-        self.image = None
 
     # ---------------------------------------------------------------- exibição (R6)
 

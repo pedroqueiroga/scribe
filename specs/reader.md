@@ -13,11 +13,14 @@ com um tocador falso.
 - **R3 — Pulos de tempo** (±10 s) ficam dentro dos limites do áudio.
 - **R4 — Velocidade** anda em degraus fixos (0,75× a 2×), sem passar dos extremos, e é
   lembrada por livro.
-- **R5 — Imagem.** Quando a reprodução passa pela hora de uma imagem (**S4**, em [session.md](session.md)) durante a
-  escuta normal, a imagem aparece por 7 s. Quando o ponto é atravessado por um pulo, ela
-  não aparece. A imagem pode ser fechada antes do tempo. Os 7 s contam tempo de
-  reprodução: com o áudio pausado, a imagem continua à mostra. Qualquer pulo (para frente
-  ou para trás, pelo leitor ou pelo tocador) esconde a imagem na hora.
+- **R5 — Imagem à mostra.** A imagem fica à mostra numa janela de tempo em volta da hora
+  dela (**S4**, em [session.md](session.md)): entra 5 s antes, para encaixar com o fim da
+  leitura do texto que a precede, e sai 20 s depois. Vale o mesmo nos dois modos da janela
+  (ao lado do texto, **J6**; miniatura, **J17**). A regra depende só da posição de escuta:
+  com o áudio pausado a imagem continua como está, e depois de um pulo vale a posição nova
+  (cair dentro da janela de uma imagem a mostra; cair fora a esconde). Quando a janela da
+  próxima imagem começa, ela substitui a anterior. A imagem também sai quando a narração
+  deixa o capítulo dela (**R14**).
 - **R6 — Karaokê.** No parágrafo atual, as palavras já ditas e a palavra atual aparecem
   com destaque total, e as seguintes aparecem esmaecidas. Os outros parágrafos ficam todos
   esmaecidos. Palavras puladas ficam ainda mais apagadas. No texto exibido, cada palavra
@@ -58,10 +61,6 @@ com um tocador falso.
   janela acompanha a linha. Quando o trecho termina, a janela fica na linha dele até a
   próxima palavra do livro: não volta para a palavra do livro dita antes do trecho.
   O trecho só aparece depois que a narração chega nele.
-- **R14 — Imagem recente.** O leitor informa a imagem mais recente pela qual a narração já
-  passou no capítulo atual (pela hora de **S4**). O capítulo de uma imagem é o do texto
-  narrado logo antes dela: uma seção do EPUB que só tem uma ilustração pertence ao capítulo
-  anterior. Ela continua sendo a imagem recente até a
-  narração passar pela próxima imagem ou sair do capítulo. Voltar no áudio para antes dela
-  faz a recente voltar a ser a anterior (ou nenhuma). É ela que a miniatura do modo de uma
-  linha mostra (**J17**).
+- **R14 — Capítulo da imagem.** O capítulo de uma imagem é o do texto narrado logo antes
+  dela: uma seção do EPUB que só tem uma ilustração pertence ao capítulo anterior. Uma
+  imagem só fica à mostra (**R5**) enquanto a palavra atual está no capítulo dela.
