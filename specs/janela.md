@@ -68,8 +68,10 @@ Verificação manual (rodando o app).
 - **J16 —** Os seletores de cor e de arquivo só são criados quando a pessoa pede para usá-los.
   Um problema no serviço de diálogos do sistema nunca impede o app de abrir.
 - **J17 —** Imagens no modo de uma linha: a imagem à mostra (**R5**) vira uma miniatura
-  pequena na ponta direita da faixa, que entra com um pulso discreto, e o texto termina
-  antes dela, sem ser coberto. Fora da janela de tempo da imagem não há miniatura. Passar
+  pequena na ponta direita da faixa, que entra com um pulso discreto. O texto termina
+  antes do lugar da miniatura, sem ser coberto, e esse lugar fica reservado mesmo sem
+  imagem: a miniatura entrar ou sair não muda as quebras de linha. Fora da janela de tempo
+  da imagem não há miniatura. Passar
   o mouse sobre a miniatura abre a imagem grande num balão **fora** da faixa, acima dela
   se houver espaço na tela, ou abaixo. O balão nunca fica no lugar da barra (**J14**): se
   a barra estiver do mesmo lado, ele fica além dela. Clicar na miniatura deixa o balão

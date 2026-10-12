@@ -265,7 +265,7 @@ Window {
             }
             anchors.leftMargin: win.pad - 8   // espaço para a fita dentro do recorte
             anchors.rightMargin: win.pad + (win.imageReserve > 0 ? win.imageReserve : 0)
-                                 + (thumb.visible ? thumb.width + 10 : 0)       // J17
+                                 + (win.oneline ? thumb.width + 10 : 0)  // J17: lugar fixo, a linha não muda
             clip: true
             interactive: false
             model: blocks
