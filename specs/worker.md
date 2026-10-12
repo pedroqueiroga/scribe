@@ -30,3 +30,7 @@ são funções puras, testáveis sem o Whisper.
 - **W7 — Fim.** Quando não há mais nada a transcrever, o worker avisa e termina.
 - **W8 — Encerrar.** Um pedido de parada encerra o worker antes de começar o próximo pedaço
   (ou no meio dele), sem salvar nada pela metade.
+- **W9 — Órfão.** Se o processo que iniciou o worker deixar de existir sem pedir a parada
+  (travou, foi morto à força), o worker se encerra sozinho, como num pedido de parada
+  (**W8**): antes do próximo pedaço ou no meio dele, em poucos segundos. Ele nunca continua
+  transcrevendo sem ninguém para usar o resultado.

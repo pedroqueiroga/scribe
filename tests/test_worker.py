@@ -8,7 +8,7 @@ from __future__ import annotations
 import pytest
 
 from scribe.store import TranscriptStore
-from scribe.worker import cut_words, plan_chunk, transcribe_loop
+from scribe.worker import cut_words, plan_chunk, transcribe_loop, watch_parent
 
 DURATION = 300.0
 
@@ -254,3 +254,102 @@ def test_W8_stop_encerra_o_laco(tmp_path):
     fake = FakeWhisper()
     transcribe_loop(TranscriptStore(tmp_path), 300.0, cmds, fake, lambda e: None)
     assert fake.calls == []
+
+
+# ---------------------------------------------------------------- W9
+
+def test_W9_pai_morto_vira_pedido_de_parada():
+    ppid = [100]
+    cmds = watch_parent(lambda: [{"playhead": 3.0}], 100, getppid=lambda: ppid[0])
+    assert cmds() == [{"playhead": 3.0}]
+    ppid[0] = 1                                        # adotado pelo init: o pai morreu
+    assert {"stop": True} in cmds()
+
+
+def test_W9_orfao_para_no_meio_do_pedaco_sem_salvar(tmp_path):
+    ppid = [100]
+
+    def die(t):
+        if t >= 3.0:
+            ppid[0] = 1
+    fake = FakeWhisper(on_segment=die)
+    store = TranscriptStore(tmp_path)
+    cmds = watch_parent(Commands(0.0), 100, getppid=lambda: ppid[0])
+    transcribe_loop(store, 300.0, cmds, fake, lambda e: None)
+    assert len(fake.calls) == 1                        # não começou outro pedaço
+    assert store.intervals == []                       # nada salvo pela metade
+
+
+def test_W9_sessao_informa_o_proprio_pid_ao_worker(tmp_path, monkeypatch):
+    import os
+    import scribe.session as session_mod
+    from tests.helpers import make_book
+    started = {}
+
+    class FakeProcess:
+        def __init__(self, target, daemon, args):
+            started["args"] = args
+
+        def start(self):
+            pass
+
+    class FakeCtx:
+        Queue = staticmethod(lambda: __import__("queue").Queue())
+        Process = FakeProcess
+
+    monkeypatch.setattr(session_mod.mp, "get_context", lambda kind: FakeCtx)
+    s = session_mod.Session(make_book("uma frase"), tmp_path, 60.0, [], "a.m4b", "small")
+    s.start_worker(0.0)
+    assert started["args"][-1] == os.getpid()
+
+
+def test_W9_orfao_real_se_encerra_sozinho(tmp_path):
+    import os
+    """Um pai de verdade inicia o worker e é morto com SIGKILL; o filho tem de sair."""
+    import subprocess
+    import sys
+    import time
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    flag = tmp_path / "saiu"
+    parent = subprocess.Popen(
+        [sys.executable, "-c",
+         "import multiprocessing as mp, os, sys, time\n"
+         "from tests.helpers import orphan_probe\n"
+         "if __name__ == '__main__':\n"
+         "    p = mp.get_context('spawn').Process(target=orphan_probe,"
+         f" args=(os.getpid(), {str(flag)!r}), daemon=True)\n"
+         "    p.start(); print(p.pid, flush=True); time.sleep(60)\n"],
+        cwd=root, stdout=subprocess.PIPE, text=True)
+    child = int(parent.stdout.readline())
+    time.sleep(0.5)
+    parent.kill()                                      # SIGKILL: sem encerramento limpo
+    parent.wait()
+    deadline = time.time() + 5
+    while time.time() < deadline and not flag.exists():
+        time.sleep(0.1)
+    try:
+        assert flag.read_text() == "parada"
+    finally:
+        try:
+            os.kill(child, 9)
+        except ProcessLookupError:
+            pass
+
+
+def test_W9_processo_do_worker_vigia_o_pai(tmp_path, monkeypatch):
+    import os
+    import queue
+    import scribe.audio as audio
+    import scribe.worker as worker
+    fake = FakeWhisper()
+    monkeypatch.setattr(worker.os, "nice", lambda n: 0)
+    monkeypatch.setattr(audio, "probe", lambda path: {"format": {"duration": "60"}})
+    monkeypatch.setattr(worker, "make_whisper", lambda *a, **k: fake)
+    cmd_q, out_q = queue.Queue(), queue.Queue()
+    cmd_q.put({"playhead": 0.0})
+    worker.run("a.m4b", str(tmp_path), "en", "small", cmd_q, out_q, parent_pid=os.getppid())
+    assert fake.calls                                  # pai vivo: transcreveu
+    fake.calls.clear()
+    worker.run("a.m4b", str(tmp_path / "b"), "en", "small", cmd_q, out_q, parent_pid=-1)
+    assert fake.calls == []                            # "pai" que não é o nosso: para logo

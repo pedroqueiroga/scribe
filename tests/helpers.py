@@ -50,3 +50,16 @@ def narrate(*parts) -> list[dict]:
 
 def all_words(book: dict) -> list[dict]:
     return [w for c in book["chapters"] for b in c["blocks"] for w in b["words"]]
+
+
+def orphan_probe(parent_pid: int, flag: str):
+    """W9: filho que só sai quando o laço de comandos pede parada (pai morto)."""
+    import time
+    from scribe.worker import watch_parent
+    cmds = watch_parent(lambda: [], parent_pid)
+    for _ in range(600):
+        if {"stop": True} in cmds():
+            with open(flag, "w") as f:
+                f.write("parada")
+            return
+        time.sleep(0.1)

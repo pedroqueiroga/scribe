@@ -8,6 +8,7 @@ from __future__ import annotations
 import bisect
 import json
 import multiprocessing as mp
+import os
 import queue
 import sys
 from pathlib import Path
@@ -74,7 +75,7 @@ class Session:
         self._proc = ctx.Process(
             target=worker.run, daemon=True,
             args=(self.audio_path, str(self.cache), self.book["language"],
-                  self.model_size, self._cmd_q, self._out_q))
+                  self.model_size, self._cmd_q, self._out_q, os.getpid()))
         self._proc.start()
         self.worker_state = "loading"
 

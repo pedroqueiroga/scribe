@@ -80,6 +80,17 @@ def _focus_elsewhere(store, duration: float, playhead: float, c: Chunk) -> bool:
     return nxt is None or abs(nxt - c.start) > 0.01
 
 
+def watch_parent(get_cmds: Callable[[], list[dict]], parent_pid: int,
+                 getppid: Callable[[], int] = os.getppid) -> Callable[[], list[dict]]:
+    """W9: se o processo pai morreu (o worker foi adotado por outro), pede a parada."""
+    def cmds():
+        out = get_cmds()
+        if getppid() != parent_pid:
+            out.append({"stop": True})
+        return out
+    return cmds
+
+
 TranscribeFn = Callable[[float, float, bool], Iterable[list[dict]]]
 
 
@@ -144,9 +155,10 @@ def transcribe_loop(store, duration: float, get_cmds: Callable[[], list[dict]],
 
 # ---------------------------------------------------------------- processo real
 
-def run(audio_path: str, cache: str, language: str | None, model_size: str, cmd_q, out_q):
+def run(audio_path: str, cache: str, language: str | None, model_size: str, cmd_q, out_q,
+        parent_pid: int | None = None):
     try:
-        _run(audio_path, Path(cache), language, model_size, cmd_q, out_q)
+        _run(audio_path, Path(cache), language, model_size, cmd_q, out_q, parent_pid)
     except Exception:
         out_q.put({"type": "error", "msg": traceback.format_exc()})
 
@@ -183,7 +195,7 @@ def make_whisper(audio_path: str, language: str | None, model_size: str,
     return whisper
 
 
-def _run(audio_path, cache, language, model_size, cmd_q, out_q):
+def _run(audio_path, cache, language, model_size, cmd_q, out_q, parent_pid=None):
     from . import audio
     from .store import TranscriptStore
 
@@ -199,6 +211,8 @@ def _run(audio_path, cache, language, model_size, cmd_q, out_q):
             except queue.Empty:
                 return out
 
+    if parent_pid is not None:
+        get_cmds = watch_parent(get_cmds, parent_pid)                    # W9
     whisper = make_whisper(audio_path, language, model_size,
                            on_ready=lambda: out_q.put({"type": "ready"}))
     transcribe_loop(store, duration, get_cmds, whisper, out_q.put)
