@@ -1,0 +1,25 @@
+[project]
+name = "scribe"
+version = "0.1.0"
+description = "Leitura imersiva: EPUB + audiobook sincronizados num overlay"
+requires-python = ">=3.11"
+dependencies = [
+  "ebooklib",
+  "beautifulsoup4",
+  "lxml",
+  "faster-whisper",
+  "rapidfuzz",
+  "num2words",
+  "PySide6>=6.8,!=6.12.0",  # 6.12.0: Signal.emit vaza referências do True (specs/plataforma.md)
+  "pynput",
+]
+
+[project.scripts]
+scribe = "scribe.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["scribe"]
