@@ -173,3 +173,14 @@ def test_S7_momento_dentro_do_texto_do_audio(tmp_path):
     assert s.extra_at(lazy["s"] + 0.01) == (0, 1)
     assert s.extra_at(very["s"] - 0.5) is None          # antes do trecho
     assert s.extra_at(lazy["e"] + 0.5) is None          # depois do trecho
+
+
+def test_S7_ultima_palavra_do_audio_continua_ate_a_proxima_do_livro(tmp_path):
+    book = make_book(COMMENT, "img:c.png", AFTER)
+    tr = narrate(COMMENT, "very lazy.", 1.5, AFTER)      # pausa depois do trecho
+    s = new_session(tmp_path, book)
+    s.handle({"type": "segment", "seg": segment(tr, s=0.0)})
+    lazy = next(w for w in tr if w["w"] == "lazy.")
+    there = next(w for w in tr if w["w"] == "there")
+    assert s.extra_at(lazy["e"] + 0.7) == (0, 1)         # na pausa: ainda "lazy."
+    assert s.extra_at(there["s"] + 0.01) is None         # o livro retomou

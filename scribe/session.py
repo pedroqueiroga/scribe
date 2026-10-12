@@ -157,9 +157,15 @@ class Session:
         """S7: (trecho, palavra) do texto só do áudio sendo dito em t, ou None."""
         for ei, ex in enumerate(self.extras):
             ws = ex["words"]
-            if ws[0]["s"] <= t <= ws[-1]["e"]:
-                wi = max(i for i, w in enumerate(ws) if w["s"] <= t)
-                return ei, wi
+            if not ws[0]["s"] <= t:
+                continue
+            if t > ws[-1]["e"]:
+                # depois do trecho: a última palavra dele continua até o livro retomar
+                k = bisect.bisect_right(self.word_starts, ws[-1]["s"])
+                if k < len(self.word_starts) and self.word_starts[k] <= t:
+                    continue
+            wi = max(i for i, w in enumerate(ws) if w["s"] <= t)
+            return ei, wi
         return None
 
     def word_at(self, t: float) -> int | None:

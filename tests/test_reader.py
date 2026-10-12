@@ -538,6 +538,19 @@ def test_R13_posicao_da_palavra_atual_dentro_do_texto_do_audio(tmp_path, lib):
     assert reader.current_char_offset() == plain.index("lazy.")
 
 
+def test_R13_depois_do_trecho_a_janela_nao_volta_para_a_palavra_anterior(tmp_path, lib):
+    tr = narrate(COMMENT, "very lazy.", 1.5, AFTER)      # pausa depois do trecho
+    reader, player, *_ = build(tmp_path, lib, COMMENT, "img:c.png", AFTER, transcript=tr)
+    lazy = next(w for w in tr if w["w"] == "lazy.")
+    there = next(w for w in tr if w["w"] == "there")
+    plain = COMMENT + "\n" + "♪ very lazy."
+    play_to(reader, player, lazy["e"] + 0.7)
+    assert reader.current_row == 0
+    assert reader.current_char_offset() == plain.index("lazy.")
+    play_to(reader, player, there["s"] + 0.05)
+    assert reader.current_char_offset() == 0             # "there", no parágrafo seguinte
+
+
 # ---------------------------------------------------------------- R14
 
 def test_R14_imagem_recente_e_a_ultima_que_a_narracao_passou(tmp_path, lib):

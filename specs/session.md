@@ -18,4 +18,6 @@ Testes: [`tests/test_session.py`](../tests/test_session.py)
   interface não ficar esperando para sempre.
 - **S7 — Momento no texto do áudio.** Para um instante *t* dentro de um trecho só do áudio
   (**A12**), entre o início da primeira palavra e o fim da última, a sessão informa qual é
-  o trecho e qual palavra dele está sendo dita.
+  o trecho e qual palavra dele está sendo dita. Depois que o trecho termina, e até a
+  próxima palavra narrada do livro começar, a última palavra dele continua sendo a
+  informada, assim como uma palavra do livro continua atual até a seguinte começar.

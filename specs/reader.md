@@ -55,7 +55,9 @@ com um tocador falso.
   parágrafo da palavra do livro a que ele está associado, numa linha própria, em itálico,
   marcado como vindo do áudio. O karaokê vale também para ele: enquanto o trecho está
   sendo dito, o parágrafo dele é o atual, as palavras já ditas ficam destacadas, e a
-  janela acompanha a linha. O trecho só aparece depois que a narração chega nele.
+  janela acompanha a linha. Quando o trecho termina, a janela fica na linha dele até a
+  próxima palavra do livro: não volta para a palavra do livro dita antes do trecho.
+  O trecho só aparece depois que a narração chega nele.
 - **R14 — Imagem recente.** O leitor informa a imagem mais recente pela qual a narração já
   passou no capítulo atual (pela hora de **S4**). O capítulo de uma imagem é o do texto
   narrado logo antes dela: uma seção do EPUB que só tem uma ilustração pertence ao capítulo
