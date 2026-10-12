@@ -11,7 +11,7 @@ from PySide6.QtGui import QFontDatabase, QGuiApplication, QSurfaceFormat
 from PySide6.QtQml import QQmlApplicationEngine
 
 from .align import NARRATED, SKIPPED
-from .layout import GAP, ImageLayout
+from .layout import GAP, ImageLayout, inline_size, is_vertical
 from . import oneline as one
 from .reader import Reader
 
@@ -93,9 +93,11 @@ class BlockModel(QAbstractListModel):
         return None
 
     def _compute_visible(self):
-        # J9: blocos inteiramente pulados somem; imagens ficam no cartão (J6), não na lista
-        return [b["kind"] != "img" and self.r.session.block_state(b) != SKIPPED
-                for b in self.r.session.blocks]
+        # J9: blocos inteiramente pulados somem; imagens ficam no painel (J6), e só entram
+        # na lista as que têm hora (G8), que o QML mostra no modo vertical
+        inline = self.r.inline_images()
+        return [inline[i] if b["kind"] == "img" else self.r.session.block_state(b) != SKIPPED
+                for i, b in enumerate(self.r.session.blocks)]
 
     def refresh_all(self):
         self._visible = self._compute_visible()
@@ -208,6 +210,10 @@ class Bridge(QObject):
     @Property(str, constant=True)
     def bookTitle(self):
         return self.r.session.book["title"]
+
+    @Property(int, notify=imageChanged)
+    def focusRow(self):
+        return self.r.focus_row                           # G10
 
     @Property(str, notify=imageChanged)
     def image(self):
@@ -417,6 +423,14 @@ class Bridge(QObject):
     @Property(float, notify=imageChanged)
     def imagePanelHeight(self):
         return self._panel[1]
+
+    @Slot(float, float, bool, bool, result=bool)
+    def isVertical(self, w, h, oneline, now):
+        return is_vertical(self.layout.saved_width(w), h, oneline, now)   # G7, G5
+
+    @Slot(float, float, float, float, result="QVariantList")
+    def inlineSize(self, text_w, win_h, img_w, img_h):
+        return list(inline_size(text_w, win_h, img_w, img_h))   # G9
 
     @Property(float, constant=True)
     def imageGap(self):

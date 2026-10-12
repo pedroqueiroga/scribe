@@ -51,6 +51,7 @@ class Reader:
         self.current_word: int | None = None
         self.current_extra: tuple[int, int] | None = None   # R13
         self.image: str | None = None
+        self.focus_row = -1                    # G10: imagem que é o foco da rolagem
         self._images_version = -1
         self._images: list[tuple[float, str]] = []
         self._sync(self.position)
@@ -94,17 +95,32 @@ class Reader:
         return True
 
     def _ensure_images(self):
-        """Horário (S4), arquivo e capítulo de cada imagem, ordenados pelo horário."""
+        """Horário (S4), arquivo, capítulo, linha e início da fala seguinte (G10) de cada
+        imagem, ordenados pelo horário."""
         if self._images_version != self.session.version:
             imgs = []
             for row, b in enumerate(self.session.blocks):
                 if b["kind"] == "img":
                     ts = self.session.image_time(row)
                     if ts is not None:
-                        imgs.append((ts, b["src"], self._anchor_chapter(row)))
+                        imgs.append((ts, b["src"], self._anchor_chapter(row), row,
+                                     self._next_speech(row)))
             self._images = sorted(imgs)
             self._images_version = self.session.version
         return self._images
+
+    def inline_images(self) -> list[bool]:
+        """G8: por bloco, se é uma imagem que entra no texto no modo vertical (tem hora)."""
+        return [b["kind"] == "img" and self.session.image_time(row) is not None
+                for row, b in enumerate(self.session.blocks)]
+
+    def _next_speech(self, row: int) -> float | None:
+        """G10: início da primeira palavra narrada depois do bloco."""
+        for b in self.session.blocks[row + 1:]:
+            t = self.session.block_start(b)
+            if t is not None:
+                return t
+        return None
 
     def _anchor_chapter(self, row: int) -> int:
         """R14: capítulo do texto narrado logo antes da imagem."""
@@ -117,14 +133,25 @@ class Reader:
     def _update_image(self) -> bool:
         """R5: a imagem à mostra depende só da posição; True se mudou."""
         src = self._image_at(self.position)
-        if src == self.image:
+        focus = self._focus_at(self.position)
+        if src == self.image and focus == self.focus_row:
             return False
-        self.image = src
+        self.image, self.focus_row = src, focus
         return True
+
+    def _focus_at(self, t: float) -> int:
+        """G10: linha da imagem que é o foco da rolagem em t, ou -1."""
+        imgs = self._ensure_images()
+        k = bisect.bisect_right([i[0] for i in imgs], t + IMAGE_LEAD) - 1
+        if k < 0:
+            return -1
+        ts, _, _, row, nxt = imgs[k]
+        end = nxt if nxt is not None else ts + IMAGE_HOLD
+        return row if t < end else -1
 
     def _image_at(self, t: float) -> str | None:
         imgs = self._ensure_images()
-        k = bisect.bisect_right([ts for ts, _, _ in imgs], t + IMAGE_LEAD) - 1
+        k = bisect.bisect_right([i[0] for i in imgs], t + IMAGE_LEAD) - 1
         if k < 0 or t > imgs[k][0] + IMAGE_HOLD:
             return None
         if self.current_row < 0 or self.session.blocks[self.current_row]["chapter"] != imgs[k][2]:

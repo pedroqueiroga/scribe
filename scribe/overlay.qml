@@ -37,6 +37,15 @@ Window {
     minimumWidth: 320; minimumHeight: reader.onelineHeight
     // O2/J14: o modo de uma linha é consequência da altura da janela
     readonly property bool oneline: height < reader.onelineThreshold
+    // G7: janela mais alta que larga põe as imagens no texto (a ponte usa a largura de antes
+    // do painel). Depende do modo atual (folga), por isso não é uma ligação; e é adiada
+    // para painel e largura já terem se acertado juntos.
+    property bool vertical: false
+    function updateVertical() {
+        vertical = reader.isVertical(width, height,
+                                     height < reader.onelineThreshold, vertical)
+    }
+    onVerticalChanged: Qt.callLater(syncImage)
     readonly property real lineH: reader.linePitch          // O1: medida na tela
     visible: true
     color: "transparent"
@@ -53,6 +62,7 @@ Window {
             height = g[3]
         }
         lastLine = reader.linePitch
+        updateVertical()
         if (reader.passClicks) {                 // abriu já atravessando: aplica e avisa
             Qt.callLater(updateInputRegion)
         }
@@ -60,8 +70,8 @@ Window {
     }
     onXChanged: saveGeo.restart()
     onYChanged: saveGeo.restart()
-    onWidthChanged: { saveGeo.restart(); if (reader.passClicks) Qt.callLater(updateInputRegion) }
-    onHeightChanged: saveGeo.restart()
+    onWidthChanged: { saveGeo.restart(); if (reader.passClicks) Qt.callLater(updateInputRegion); Qt.callLater(updateVertical) }
+    onHeightChanged: { saveGeo.restart(); Qt.callLater(updateVertical) }
     Timer { id: saveGeo; interval: 600; onTriggered: reader.saveGeometry(win.x, win.y, win.width, win.height) }
 
     Connections {
@@ -231,7 +241,8 @@ Window {
     function syncImage() {
         // pela altura, e não por `oneline`: na abertura a ligação ainda não se atualizou
         const many = win.height >= reader.onelineThreshold
-        const want = reader.image !== "" && many ? reader.image : ""
+        const side = many && !win.vertical                                  // G7
+        const want = reader.image !== "" && side ? reader.image : ""
         if (want === win.shownImage) return
         win.shownImage = want
         if (want !== "") {
@@ -323,11 +334,52 @@ Window {
             header: Item { height: win.oneline ? 0 : list.height * 0.40 }
             footer: Item { height: win.oneline ? list.height : list.height * 0.60 }
 
-            NumberAnimation on contentY {
+            // A rolagem é animada à mão, quadro a quadro: se um parágrafo acima muda de altura
+            // no meio do caminho (karaokê, peso da fonte, delegate recriado), o deslocamento é
+            // compensado na hora e a animação segue sem solavanco.
+            QtObject {
                 id: scrollAnim
-                running: false
-                duration: 450
-                easing.type: Easing.OutCubic
+                property bool running: false
+                property real from: 0
+                property real to: 0
+                property real elapsed: 0
+                property real duration: 450
+                property bool slow: false          // G10/J18: palavra ↔ imagem, mais lenta
+                property bool focusMove: false
+                function start() { elapsed = 0; running = true }
+                function stop() { running = false; focusMove = false }
+            }
+            FrameAnimation {
+                running: scrollAnim.running
+                onTriggered: list.step(frameTime)
+            }
+            function step(dt) {
+                compensate()
+                if (win.browsing) { scrollAnim.stop(); return }
+                scrollAnim.elapsed += dt * 1000
+                const p = Math.min(1, scrollAnim.elapsed / scrollAnim.duration)
+                const e = scrollAnim.slow ? (1 - Math.cos(Math.PI * p)) / 2   // entra e sai devagar
+                                          : 1 - Math.pow(1 - p, 3)
+                contentY = scrollAnim.from + (scrollAnim.to - scrollAnim.from) * e
+                if (p >= 1) scrollAnim.stop()
+            }
+            // o item seguido fica parado na tela quando o que está acima dele muda de altura
+            property int refRow: -1
+            property real refY: 0
+            function remember(r) {
+                const it = itemAtIndex(r)
+                refRow = it ? r : -1
+                refY = it ? it.y : 0
+            }
+            function compensate() {
+                if (refRow < 0) return
+                const it = itemAtIndex(refRow)
+                if (!it) { refRow = -1; return }
+                const d = it.y - refY
+                refY = it.y
+                if (Math.abs(d) < 0.5 || win.browsing) return
+                contentY += d
+                if (scrollAnim.running) { scrollAnim.from += d; scrollAnim.to += d }
             }
 
             // J4: mantém a linha da palavra atual a 40% da altura
@@ -335,14 +387,19 @@ Window {
             // o delegate no meio do próprio código (segfault em pulos rápidos). Toda chamada é
             // adiada para o laço de eventos e várias no mesmo ciclo viram uma só.
             property bool followAnimated: false
+            // G10: no modo vertical, a imagem em foco fica centralizada no lugar da palavra
+            readonly property int focusRow: win.vertical ? reader.focusRow : -1
+            onFocusRowChanged: { scrollAnim.focusMove = true; requestFollow(true) }
             function requestFollow(animated) {
                 followAnimated = animated
                 Qt.callLater(list.follow)
             }
             function follow() {
                 let animated = followAnimated
-                const r = reader.currentRow
+                const img = focusRow >= 0
+                const r = img ? focusRow : reader.currentRow
                 if (win.browsing || r < 0) return
+                compensate()
                 let item = itemAtIndex(r)
                 if (!item) {
                     positionViewAtIndex(r, ListView.Beginning)
@@ -351,22 +408,30 @@ Window {
                     if (!item) return
                 }
                 const anchorY = win.oneline ? 0 : height * 0.40
-                const target = item.y + item.lineY - anchorY
+                const target = img ? item.y + (item.height - height) / 2
+                                   : item.y + item.lineY - anchorY
+                remember(r)
                 if (Math.abs(target - contentY) < 1) return
+                if (animated && scrollAnim.running && Math.abs(scrollAnim.to - target) < 1) return
                 if (animated) {
+                    const slow = scrollAnim.focusMove
                     scrollAnim.stop()
+                    scrollAnim.focusMove = slow
+                    scrollAnim.slow = slow
+                    scrollAnim.duration = slow ? 1100 : 450
                     scrollAnim.from = contentY
                     scrollAnim.to = target
                     scrollAnim.start()
                 } else {
+                    scrollAnim.stop()
                     contentY = target
                 }
             }
             onHeightChanged: requestFollow(false)
             // a lista estima a altura dos parágrafos ainda não criados; quando um parágrafo
             // acima é criado de verdade, tudo se desloca e o enquadramento precisa ser refeito
-            onOriginYChanged: requestFollow(scrollAnim.running)
-            onContentHeightChanged: requestFollow(scrollAnim.running)
+            onOriginYChanged: { Qt.callLater(compensate); requestFollow(scrollAnim.running) }
+            onContentHeightChanged: { Qt.callLater(compensate); requestFollow(scrollAnim.running) }
             Component.onCompleted: requestFollow(false)
 
             delegate: Item {
@@ -375,6 +440,7 @@ Window {
                 required property string kind
                 required property string html
                 required property bool shown
+                required property string src
                 readonly property bool current: index === reader.currentRow
                 // espaçamento no próprio HTML: texto visível e medidor têm o mesmo layout
                 readonly property string rich: '<div style="line-height:128%">' + html + '</div>'
@@ -383,12 +449,52 @@ Window {
                 onLineYChanged: if (current) list.requestFollow(true)
                 onCurrentChanged: if (current) list.requestFollow(true)
                 width: list.width
-                height: shown ? body.implicitHeight + gap : 0
-                visible: shown
+                // G8: imagens só entram na lista no modo vertical
+                readonly property bool inline: kind === "img"
+                visible: shown && (!inline || win.vertical)
+                height: !visible ? 0 : inline ? fig.height + gap * 2 : body.implicitHeight + gap
                 readonly property real gap: kind === "h" ? reader.fontSize * 0.9 : reader.fontSize * 0.7
+
+                // J18: a imagem no texto, esmaecida fora da janela de tempo dela (R5)
+                Loader {
+                    id: fig
+                    active: row.inline && row.visible
+                    x: 18 + (row.width - 18 - width) / 2
+                    y: row.gap                        // tamanho vem do item (G9)
+                    sourceComponent: Item {
+                        readonly property var size: reader.inlineSize(row.width - 18, win.height,
+                                                                      pic.implicitWidth, pic.implicitHeight)
+                        width: size[0]; height: size[1]
+                        opacity: row.src === reader.image ? 1 : 0.4
+                        Behavior on opacity { NumberAnimation { duration: 500 } }
+                        Image {
+                            id: pic
+                            source: row.src
+                            anchors.fill: parent
+                            fillMode: Image.PreserveAspectFit
+                            asynchronous: true
+                            smooth: true; mipmap: true
+                            visible: false
+                        }
+                        MultiEffect {
+                            source: pic
+                            anchors.fill: parent
+                            maskEnabled: true
+                            maskSource: figMask
+                        }
+                        Item {
+                            id: figMask
+                            anchors.fill: parent
+                            layer.enabled: true
+                            visible: false
+                            Rectangle { anchors.fill: parent; radius: 8 }
+                        }
+                    }
+                }
 
                 Text {
                     id: body
+                    visible: !row.inline
                     x: 18
                     y: row.kind === "h" ? row.gap * 0.6 : 0
                     width: parent.width - x                    // J13: sem limite de linha

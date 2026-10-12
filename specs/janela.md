@@ -81,3 +81,11 @@ Verificação manual (rodando o app).
   se houver espaço na tela, ou abaixo. O balão nunca fica no lugar da barra (**J14**): se
   a barra estiver do mesmo lado, ele fica além dela. Clicar na miniatura deixa o balão
   aberto até um novo clique ou até a imagem sair.
+- **J18 —** Modo vertical ([layout.md](layout.md), **G7**–**G9**): as imagens ficam no
+  texto, centralizadas, com cantos arredondados. Fora da janela de tempo dela (**R5**) a
+  imagem fica esmaecida como os parágrafos que não são o atual; dentro dela, aparece com
+  brilho total. Trocar entre o modo vertical e o normal, alargando ou estreitando a janela,
+  fecha ou abre o painel ao lado conforme o caso (**J6**), sem o texto pular.
+  A passagem do foco da palavra para a imagem e de volta (**G10**) é uma rolagem suave e
+  mais lenta que a da troca de linha, para a imagem ficar centralizada nem que seja por um
+  momento.

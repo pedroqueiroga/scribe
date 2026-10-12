@@ -49,3 +49,23 @@ class ImageLayout:
 
     def saved_width(self, current_w: float) -> float:                      # G5
         return self._base if self._base is not None else current_w
+
+
+# ---------------------------------------------------------------- modo vertical
+
+INLINE_MAX_H = 0.6   # G9: fração da altura da janela
+ENTER_VERTICAL = 1.15  # G7: folga para não alternar perto do quadrado
+
+
+def is_vertical(win_w: float, win_h: float, oneline: bool, now: bool = False) -> bool:  # G7
+    if oneline:
+        return False
+    return win_h >= win_w if now else win_h > ENTER_VERTICAL * win_w
+
+
+def inline_size(text_w: float, win_h: float, img_w: float, img_h: float) -> tuple[float, float]:
+    """G9: tamanho da imagem no texto, sem distorcer."""
+    if img_w <= 0 or img_h <= 0:
+        return (0, 0)
+    k = min(text_w / img_w, INLINE_MAX_H * win_h / img_h, 1.0)
+    return (img_w * k, img_h * k)
