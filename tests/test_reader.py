@@ -348,11 +348,52 @@ def test_R10_cliques_so_atravessam_quando_fixa(tmp_path, lib):
 
 def test_R10_soltar_desliga_o_atravessar(tmp_path, lib):
     reader, *_ = build(tmp_path, lib, P1)
+    reader.set_pref("click_through", True)    # ligado, mas sem efeito com a janela solta
     reader.toggle_lock()
-    reader.set_pref("click_through", True)
-    reader.toggle_lock()
+    reader.toggle_lock()                       # fixou primeiro: o cadeado só desliga o atravessar
+    reader.toggle_lock()                       # sem atravessar, o cadeado solta
     assert reader.prefs["click_through"] is False
     assert reader.window_mode() == {"on_top": False, "click_through": False}
+
+
+def test_R10_atravessar_com_a_janela_solta_tambem_fixa(tmp_path, lib):
+    reader, *_ = build(tmp_path, lib, P1)
+    reader.toggle_click_through()
+    assert reader.window_mode() == {"on_top": True, "click_through": True}
+
+
+def test_R10_cadeado_desfaz_o_que_o_atravessar_fixou(tmp_path, lib):
+    reader, *_ = build(tmp_path, lib, P1)
+    reader.toggle_click_through()
+    reader.toggle_lock()
+    assert reader.window_mode() == {"on_top": False, "click_through": False}
+
+
+def test_R10_fixada_antes_continua_fixa_ao_soltar_o_atravessar(tmp_path, lib):
+    reader, *_ = build(tmp_path, lib, P1)
+    reader.toggle_lock()
+    reader.toggle_click_through()
+    assert reader.window_mode() == {"on_top": True, "click_through": True}
+    reader.toggle_lock()
+    assert reader.window_mode() == {"on_top": True, "click_through": False}
+
+
+def test_R10_quem_fixou_fica_salvo(tmp_path, lib):
+    reader, _, session, *_ = build(tmp_path, lib, P1)
+    reader.toggle_click_through()
+    again = Reader(session, FakePlayer(120.0), Library(), reader.bid)
+    again.toggle_lock()
+    assert again.window_mode() == {"on_top": False, "click_through": False}
+
+
+def test_R10_fixar_de_novo_depois_do_atravessar_e_da_pessoa(tmp_path, lib):
+    reader, *_ = build(tmp_path, lib, P1)
+    reader.toggle_click_through()              # o atravessar fixou...
+    reader.toggle_click_through()              # ...desligou pelo botão: continua fixa
+    assert reader.window_mode() == {"on_top": True, "click_through": False}
+    reader.toggle_click_through()              # agora a fixação já era da pessoa
+    reader.toggle_lock()
+    assert reader.window_mode() == {"on_top": True, "click_through": False}
 
 
 

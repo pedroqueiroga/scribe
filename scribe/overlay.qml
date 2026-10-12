@@ -886,9 +886,9 @@ Window {
                               startX: 9; startY: 11; PathLine { x: 9; y: 16.5 }
                           }
                       } }
-                Btn { id: passBtn; visible: reader.locked; active: reader.clickThrough
-                      tip: reader.clickThrough ? "Cliques atravessam a janela (clique para desligar)"
-                                               : "Deixar os cliques atravessarem a janela"
+                // R10: com a janela solta, também a fixa
+                Btn { id: passBtn; active: reader.passClicks
+                      tip: "Deixar os cliques atravessarem a janela"
                       onClicked: reader.toggleClickThrough()
                       Shape {   // seta do mouse atravessando uma folha tracejada
                           anchors.fill: parent

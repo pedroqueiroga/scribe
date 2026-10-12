@@ -20,7 +20,7 @@ BLOCK_RESTART = 2.0        # R2
 SEEK_LEAD = 0.05           # R1: começa um tiquinho antes da palavra
 
 DEFAULT_PREFS = {"font_size": 22, "bg_opacity": 0.55, "locked": False,
-                 "click_through": False, "geometry": [],
+                 "click_through": False, "lock_by_pass": False, "geometry": [],
                  "text_color": "#f3eee4", "text_opacity": 1.0,
                  "bg_color": "#15131f", "bg_image": ""}
 PREF_LIMITS = {"font_size": (12, 64), "bg_opacity": (0.0, 1.0),
@@ -306,10 +306,22 @@ class Reader:
         self.lib.save()
 
     def toggle_lock(self):                                                 # R10
-        locked = not self.prefs["locked"]
-        self.set_pref("locked", locked)
-        if not locked and self.prefs["click_through"]:
+        if self.window_mode()["click_through"]:
+            # o cadeado desfaz só o que o atravessar fez
             self.set_pref("click_through", False)
+            if self.prefs["lock_by_pass"]:
+                self.set_pref("locked", False)
+        else:
+            self.set_pref("locked", not self.prefs["locked"])
+        self.set_pref("lock_by_pass", False)
+
+    def toggle_click_through(self):                                        # R10
+        if self.window_mode()["click_through"]:
+            self.set_pref("click_through", False)
+            return
+        self.set_pref("lock_by_pass", not self.prefs["locked"])
+        self.set_pref("locked", True)
+        self.set_pref("click_through", True)
 
     def window_mode(self) -> dict:                                         # R10
         locked = bool(self.prefs["locked"])

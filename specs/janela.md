@@ -7,13 +7,16 @@ Verificação manual (rodando o app).
   das outras janelas (**R10**, em [reader.md](reader.md)).
 - **J2 —** Pode ser arrastada pelo fundo e redimensionada pelas bordas, a menos que
   esteja **fixa**.
-- **J3 —** Fixa, ela pode também deixar os cliques passarem para o que está embaixo
-  ("atravessar"). Nesse modo, a janela inteira deixa os cliques passarem, menos um pequeno
-  ícone de cadeado aberto, que continua visível e clicável e solta a janela. O ícone fica
+- **J3 —** Ela pode também deixar os cliques passarem para o que está embaixo
+  ("atravessar"). O botão de atravessar está sempre na barra; com a janela solta, ele
+  também a fixa (**R10**, em [reader.md](reader.md)). Nesse modo, a janela inteira deixa
+  os cliques passarem, menos um pequeno ícone de cadeado aberto, que continua visível e
+  clicável e desliga o atravessar: a janela continua fixa se já estava fixa antes, ou é
+  solta se foi o atravessar que a fixou. O ícone fica
   encostado na parede esquerda, na margem onde nunca há texto nem a fita do parágrafo
   atual: na altura da barra (**J5**), que está escondida, ou no meio da faixa no modo de
   uma linha (**J14**). O atalho
-  global Ctrl+Alt+F também solta. Nunca existe um estado sem saída pelo mouse.
+  global Ctrl+Alt+F faz o mesmo que o cadeado. Nunca existe um estado sem saída pelo mouse.
 - **J4 —** A linha da palavra atual fica numa altura fixa da janela (cerca de 40% da
   altura), mesmo em parágrafos maiores que a janela, e a rolagem acompanha a narração com
   animação suave. Rolar com o mouse solta o texto da narração para navegar livremente, e ele

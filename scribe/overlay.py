@@ -241,10 +241,6 @@ class Bridge(QObject):
         return self.r.prefs["locked"]
 
     @Property(bool, notify=prefsChanged)
-    def clickThrough(self):
-        return self.r.prefs["click_through"]
-
-    @Property(bool, notify=prefsChanged)
     def onTop(self):
         return self.r.window_mode()["on_top"]
 
@@ -389,7 +385,7 @@ class Bridge(QObject):
 
     @Slot()
     def toggleClickThrough(self):
-        self.r.set_pref("click_through", not self.r.prefs["click_through"])
+        self.r.toggle_click_through()
         self.prefsChanged.emit()
 
     @Slot(int, int, int, int)

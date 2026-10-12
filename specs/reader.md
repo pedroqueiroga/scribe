@@ -42,9 +42,13 @@ com um tocador falso.
   [library.md](library.md)) e salva a posição atual ao fechar.
 - **R10 — Modo da janela.** O leitor decide o comportamento da janela a partir das
   preferências: fixa significa também ficar por cima das outras janelas, e os cliques só
-  atravessam a janela quando ela está fixa e essa opção está ligada. Soltar a janela
-  desliga o atravessar cliques, porque senão ela não poderia mais ser clicada (**J3**,
-  em [janela.md](janela.md)).
+  atravessam a janela quando ela está fixa e essa opção está ligada. Ligar o atravessar
+  com a janela solta também a fixa. O cadeado (**J3**, em [janela.md](janela.md)), com os
+  cliques atravessando, desfaz só o que o atravessar fez: se a janela já estava fixa antes,
+  ela continua fixa e só o atravessar desliga; se foi o atravessar que a fixou, ela também
+  é solta. Sem atravessar, o cadeado fixa ou solta a janela, e soltá-la sempre desliga o
+  atravessar, porque senão ela não poderia mais ser clicada. Tudo isso fica salvo entre
+  sessões.
 - **R11 — Fechar pausa na hora.** Fechar o app (pelo botão, pelo gerenciador de janelas ou
   pelo atalho) pausa o áudio antes de qualquer outra coisa. O resto do encerramento (salvar
   a posição, parar a transcrição) acontece depois, com o áudio já em silêncio.
