@@ -20,7 +20,12 @@ Verificação manual (rodando o app).
   fazer qualquer pulo no áudio (clicar numa palavra, voltar, avançar, atalhos, clicar ou
   arrastar na barra de progresso), volta o texto para a palavra que está sendo narrada.
 - **J5 —** Uma barra discreta aparece quando o mouse passa pela janela. Ela mostra o
-  capítulo, o progresso, tocar/pausar, a velocidade, fixar, a fonte e a opacidade. A barra
+  capítulo, o progresso, tocar/pausar, a velocidade, fixar, a fonte e a opacidade. Os
+  controles são ícones, sem palavras: só a velocidade mostra o número ("1.25×"). Cada um
+  mostra o nome (e o valor, quando houver) num balãozinho depois de meio segundo com o
+  mouse em cima; o balão fica fora da janela, para não ser cortado no modo de uma linha,
+  e sempre inteiro dentro da tela (troca de lado se o preferido não couber).
+  Os ícones de opacidade mostram o valor atual pela própria transparência. A barra
   tem uma faixa própria na base da janela. O texto continua visível ali, esmaecendo por
   baixo da barra, mas a faixa não é clicável para o texto: cliques nela são só da barra
   (ou arrastam a janela), então barra e palavras nunca disputam o mouse. Barra e linha de

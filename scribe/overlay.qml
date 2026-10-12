@@ -176,6 +176,56 @@ Window {
         Item { anchors.fill: parent; HoverHandler { id: popHover } }
     }
 
+    // J5: balãozinho com o nome do botão, numa janela própria (a da barra no modo de uma
+    // linha é baixa demais e o cortaria)
+    property Item tipFor: null
+    property bool tipShown: false
+    function hoverTip(item, on) {
+        if (on) { tipFor = item; tipShown = false; tipDelay.restart() }
+        else if (tipFor === item) { tipDelay.stop(); tipShown = false; tipFor = null }
+    }
+    Timer {
+        id: tipDelay; interval: 500
+        onTriggered: { if (win.tipFor) { tipPop.place(); win.tipShown = true } }
+    }
+    Window {
+        id: tipPop
+        flags: Qt.ToolTip | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+               | Qt.WindowTransparentForInput
+        color: "transparent"
+        width: tipText.implicitWidth + 16; height: tipText.implicitHeight + 10
+        visible: win.tipShown && win.tipFor !== null && win.tipFor.visible && win.tipFor.tip !== ""
+                 && win.visible
+        function place() {
+            const b = win.tipFor
+            const top = b.mapToGlobal(b.width / 2, 0)
+            const bottom = b.mapToGlobal(b.width / 2, b.height)
+            const sx = win.screen.virtualX, sy = win.screen.virtualY
+            x = Math.max(sx, Math.min(sx + win.screen.width - width, Math.round(top.x - width / 2)))
+            // acima do botão; no modo de uma linha com a barra embaixo, abaixo (longe da faixa).
+            // Se o lado preferido sair da tela, vai para o outro; e nunca sai da tela
+            const above = top.y - height - 6, below = bottom.y + 6
+            const fitsAbove = above >= sy
+            const fitsBelow = below + height <= sy + win.screen.height
+            const preferUp = !(win.oneline && barPop.below)
+            const up = preferUp ? (fitsAbove || !fitsBelow) : (!fitsBelow && fitsAbove)
+            y = Math.max(sy, Math.min(sy + win.screen.height - height, Math.round(up ? above : below)))
+        }
+        Rectangle {
+            anchors.fill: parent
+            radius: 6
+            color: win.ink
+            border.width: 1; border.color: Qt.rgba(0.85, 0.70, 0.37, 0.4)
+            Text {
+                id: tipText
+                anchors.centerIn: parent
+                text: win.tipFor ? win.tipFor.tip : ""
+                color: win.paper
+                font.family: win.face; font.pixelSize: 12
+            }
+        }
+    }
+
     // G: a janela cresce para a direita para a imagem e depois volta
     property string shownImage: ""          // imagem com espaço aberto ao lado do texto
     function syncImage() {
@@ -486,18 +536,37 @@ Window {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 2
 
-                component Btn: Text {
+                // J5: botão com ícone desenhado (filhos, numa área de 18×18) ou texto curto,
+                // e o nome num balãozinho (tip)
+                component Btn: Item {
                     id: btn
                     signal clicked()
+                    signal rightClicked()
                     property bool active: false
-                    width: Math.max(28, implicitWidth + 12); height: 26
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                    color: active ? win.ribbon : win.paper
+                    property string tip: ""
+                    property alias text: label.text
+                    property alias size: label.font.pixelSize
+                    readonly property color ink: active ? win.ribbon : win.paper
+                    default property alias glyph: glyphArea.data
+                    width: label.text !== "" ? Math.max(28, label.implicitWidth + 12) : 28
+                    height: 26
                     opacity: ma.containsMouse ? 1 : 0.7
-                    font.family: win.face; font.pixelSize: 13
-                    MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor; onClicked: btn.clicked() }
+                    Text {
+                        id: label
+                        anchors.fill: parent
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        color: btn.ink
+                        font.family: win.face; font.pixelSize: 13
+                    }
+                    Item { id: glyphArea; anchors.centerIn: parent; width: 18; height: 18 }
+                    MouseArea {
+                        id: ma; anchors.fill: parent; hoverEnabled: true
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: (e) => e.button === Qt.RightButton ? btn.rightClicked() : btn.clicked()
+                        onContainsMouseChanged: win.hoverTip(btn, containsMouse)
+                    }
                 }
 
                 // J4: aparece só com o texto solto da narração; mira de "recentralizar"
@@ -547,8 +616,8 @@ Window {
                 }
                 Item { width: 6; height: 1; visible: win.browsing }
 
-                Btn { text: "A−"; onClicked: reader.adjustFont(-2) }
-                Btn { text: "A+"; onClicked: reader.adjustFont(2) }
+                Btn { text: "A"; size: 11; tip: "Diminuir a letra"; onClicked: reader.adjustFont(-2) }
+                Btn { text: "A"; size: 17; tip: "Aumentar a letra"; onClicked: reader.adjustFont(2) }
                 // R8: cor do texto (abre o seletor) e opacidade do texto
                 Item {
                     width: 26; height: 26
@@ -567,8 +636,17 @@ Window {
                         onClicked: win.openTextColor()
                     }
                 }
-                Btn { text: "Aa " + Math.round(reader.textOpacity * 100) + "%"
-                      onClicked: reader.setTextOpacity(reader.textOpacity <= 0.41 ? 1.0 : reader.textOpacity - 0.15) }
+                Btn { tip: "Opacidade do texto: " + Math.round(reader.textOpacity * 100) + "%"
+                      onClicked: reader.setTextOpacity(reader.textOpacity <= 0.41 ? 1.0 : reader.textOpacity - 0.15)
+                      // um "A" com a transparência atual do texto, sobre um xadrezinho
+                      Grid {
+                          anchors.centerIn: parent; columns: 3
+                          Repeater { model: 9; Rectangle { width: 5; height: 5
+                                     color: Qt.rgba(1, 1, 1, index % 2 ? 0.05 : 0.22) } }
+                      }
+                      Text { anchors.centerIn: parent; text: "A"; font.family: win.face
+                             font.pixelSize: 15; font.bold: true
+                             color: win.paper; opacity: reader.textOpacity } }
                 // J15: fundo atual; clicar abre o menu de fundo
                 Item {
                     width: 26; height: 26
@@ -596,20 +674,136 @@ Window {
                         onClicked: bgMenu.popup(bgSwatch, 0, bgSwatch.height + 6)
                     }
                 }
-                Btn { text: "◐ " + Math.round(reader.bgOpacity * 100) + "%"
-                      onClicked: reader.setBgOpacity(reader.bgOpacity >= 0.95 ? 0 : reader.bgOpacity + 0.15) }
+                Btn { tip: "Opacidade do fundo: " + Math.round(reader.bgOpacity * 100) + "%"
+                      onClicked: reader.setBgOpacity(reader.bgOpacity >= 0.95 ? 0 : reader.bgOpacity + 0.15)
+                      // quadrado com o preenchimento na opacidade atual do fundo
+                      Rectangle { anchors.centerIn: parent; width: 14; height: 14; radius: 3
+                                  color: Qt.rgba(0.95, 0.93, 0.89, 0.12 + 0.75 * reader.bgOpacity)
+                                  border.width: 1.5; border.color: win.paper } }
                 Btn { text: reader.speed.toFixed(2).replace(/0$/, "") + "×"
+                      tip: "Velocidade (clique: mais rápido; botão direito: mais devagar)"
                       onClicked: reader.adjustSpeed(1)
-                      MouseArea { anchors.fill: parent; acceptedButtons: Qt.RightButton
-                                  onClicked: reader.adjustSpeed(-1) } }
-                Btn { text: "‹‹"; onClicked: reader.skip(-10) }
-                Btn { text: reader.playing ? "pausar" : "tocar"; onClicked: reader.togglePlay() }
-                Btn { text: "››"; onClicked: reader.skip(10) }
-                Btn { text: reader.locked ? "fixa" : "fixar"; active: reader.locked
-                      onClicked: reader.toggleLock() }
-                Btn { text: "atravessar"; visible: reader.locked; active: reader.clickThrough
-                      onClicked: reader.toggleClickThrough() }
-                Btn { text: "✕"; onClicked: reader.quit() }
+                      onRightClicked: reader.adjustSpeed(-1) }
+                Btn { id: backBtn; tip: "Voltar 10 s"; onClicked: reader.skip(-10)
+                      Shape {
+                          anchors.fill: parent
+                          preferredRendererType: Shape.CurveRenderer
+                          ShapePath {   // seta circular para a esquerda
+                              strokeColor: backBtn.ink; strokeWidth: 1.5; fillColor: "transparent"
+                              capStyle: ShapePath.RoundCap; joinStyle: ShapePath.RoundJoin
+                              startX: 9; startY: 2.5
+                              PathArc { x: 14.6; y: 5.75; radiusX: 6.5; radiusY: 6.5
+                                        useLargeArc: true; direction: PathArc.Counterclockwise }
+                          }
+                          ShapePath {
+                              strokeColor: backBtn.ink; strokeWidth: 1.5; fillColor: "transparent"
+                              capStyle: ShapePath.RoundCap; joinStyle: ShapePath.RoundJoin
+                              startX: 11.2; startY: 0.6
+                              PathLine { x: 9; y: 2.5 }  PathLine { x: 11.2; y: 4.4 }
+                          }
+                      }
+                      Text { anchors.centerIn: parent; anchors.verticalCenterOffset: 0.5
+                             text: "10"; color: backBtn.ink
+                             font.family: win.face; font.pixelSize: 7; font.bold: true } }
+                Btn { id: playBtn; tip: reader.playing ? "Pausar" : "Tocar"; onClicked: reader.togglePlay()
+                      Shape {
+                          anchors.fill: parent
+                          preferredRendererType: Shape.CurveRenderer
+                          ShapePath {   // ▶
+                              strokeColor: "transparent"
+                              fillColor: reader.playing ? "transparent" : playBtn.ink
+                              startX: 5; startY: 3
+                              PathLine { x: 15; y: 9 } PathLine { x: 5; y: 15 } PathLine { x: 5; y: 3 }
+                          }
+                          ShapePath {   // ❚❚
+                              strokeColor: "transparent"
+                              fillColor: reader.playing ? playBtn.ink : "transparent"
+                              startX: 4.5; startY: 3.5
+                              PathLine { x: 7.5; y: 3.5 } PathLine { x: 7.5; y: 14.5 }
+                              PathLine { x: 4.5; y: 14.5 } PathLine { x: 4.5; y: 3.5 }
+                              PathMove { x: 10.5; y: 3.5 }
+                              PathLine { x: 13.5; y: 3.5 } PathLine { x: 13.5; y: 14.5 }
+                              PathLine { x: 10.5; y: 14.5 } PathLine { x: 10.5; y: 3.5 }
+                          }
+                      } }
+                Btn { id: fwdBtn; tip: "Avançar 10 s"; onClicked: reader.skip(10)
+                      Shape {
+                          anchors.fill: parent
+                          preferredRendererType: Shape.CurveRenderer
+                          ShapePath {   // seta circular para a direita
+                              strokeColor: fwdBtn.ink; strokeWidth: 1.5; fillColor: "transparent"
+                              capStyle: ShapePath.RoundCap; joinStyle: ShapePath.RoundJoin
+                              startX: 9; startY: 2.5
+                              PathArc { x: 3.4; y: 5.75; radiusX: 6.5; radiusY: 6.5
+                                        useLargeArc: true; direction: PathArc.Clockwise }
+                          }
+                          ShapePath {
+                              strokeColor: fwdBtn.ink; strokeWidth: 1.5; fillColor: "transparent"
+                              capStyle: ShapePath.RoundCap; joinStyle: ShapePath.RoundJoin
+                              startX: 6.8; startY: 0.6
+                              PathLine { x: 9; y: 2.5 }  PathLine { x: 6.8; y: 4.4 }
+                          }
+                      }
+                      Text { anchors.centerIn: parent; anchors.verticalCenterOffset: 0.5
+                             text: "10"; color: fwdBtn.ink
+                             font.family: win.face; font.pixelSize: 7; font.bold: true } }
+                Btn { id: pinBtn; active: reader.locked
+                      tip: reader.locked ? "Janela fixa (clique para soltar)" : "Fixar a janela"
+                      onClicked: reader.toggleLock()
+                      Shape {   // alfinete: contorno solto, cheio quando fixa
+                          anchors.fill: parent
+                          preferredRendererType: Shape.CurveRenderer
+                          ShapePath {
+                              strokeColor: pinBtn.ink; strokeWidth: 1.5
+                              fillColor: reader.locked ? pinBtn.ink : "transparent"
+                              joinStyle: ShapePath.RoundJoin
+                              startX: 5.5; startY: 2
+                              PathLine { x: 12.5; y: 2 }  PathLine { x: 11; y: 3.5 }
+                              PathLine { x: 11; y: 8 }    PathLine { x: 13.5; y: 11 }
+                              PathLine { x: 4.5; y: 11 }  PathLine { x: 7; y: 8 }
+                              PathLine { x: 7; y: 3.5 }   PathLine { x: 5.5; y: 2 }
+                          }
+                          ShapePath {   // agulha
+                              strokeColor: pinBtn.ink; strokeWidth: 1.5; fillColor: "transparent"
+                              capStyle: ShapePath.RoundCap
+                              startX: 9; startY: 11; PathLine { x: 9; y: 16.5 }
+                          }
+                      } }
+                Btn { id: passBtn; visible: reader.locked; active: reader.clickThrough
+                      tip: reader.clickThrough ? "Cliques atravessam a janela (clique para desligar)"
+                                               : "Deixar os cliques atravessarem a janela"
+                      onClicked: reader.toggleClickThrough()
+                      Shape {   // seta do mouse atravessando uma folha tracejada
+                          anchors.fill: parent
+                          preferredRendererType: Shape.CurveRenderer
+                          ShapePath {
+                              strokeColor: passBtn.ink; strokeWidth: 1.2; fillColor: "transparent"
+                              strokeStyle: ShapePath.DashLine; dashPattern: [2, 1.5]
+                              startX: 1.5; startY: 5
+                              PathLine { x: 16.5; y: 5 }  PathLine { x: 16.5; y: 13 }
+                              PathLine { x: 1.5; y: 13 }  PathLine { x: 1.5; y: 5 }
+                          }
+                          ShapePath {
+                              strokeColor: passBtn.ink; strokeWidth: 1.3; fillColor: win.ink
+                              joinStyle: ShapePath.RoundJoin
+                              startX: 7; startY: 1.5
+                              PathLine { x: 7; y: 14 }     PathLine { x: 9.7; y: 11.4 }
+                              PathLine { x: 11.6; y: 16 }  PathLine { x: 13.4; y: 15.2 }
+                              PathLine { x: 11.5; y: 10.7 } PathLine { x: 15; y: 10.7 }
+                              PathLine { x: 7; y: 1.5 }
+                          }
+                      } }
+                Btn { id: quitBtn; tip: "Fechar"; onClicked: reader.quit()
+                      Shape {
+                          anchors.fill: parent
+                          preferredRendererType: Shape.CurveRenderer
+                          ShapePath {
+                              strokeColor: quitBtn.ink; strokeWidth: 1.6; fillColor: "transparent"
+                              capStyle: ShapePath.RoundCap
+                              startX: 4.5; startY: 4.5;  PathLine { x: 13.5; y: 13.5 }
+                              PathMove { x: 13.5; y: 4.5 } PathLine { x: 4.5; y: 13.5 }
+                          }
+                      } }
             }
         }
 
