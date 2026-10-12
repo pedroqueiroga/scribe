@@ -9,8 +9,10 @@ Verificação manual (rodando o app).
   esteja **fixa**.
 - **J3 —** Fixa, ela pode também deixar os cliques passarem para o que está embaixo
   ("atravessar"). Nesse modo, a janela inteira deixa os cliques passarem, menos um pequeno
-  ícone de cadeado aberto no canto superior direito, que continua visível e clicável e solta
-  a janela. O ícone fica na margem direita, fora da área do texto, para nunca cobrir letras. O atalho
+  ícone de cadeado aberto, que continua visível e clicável e solta a janela. O ícone fica
+  encostado na parede esquerda, na margem onde nunca há texto nem a fita do parágrafo
+  atual: na altura da barra (**J5**), que está escondida, ou no meio da faixa no modo de
+  uma linha (**J14**). O atalho
   global Ctrl+Alt+F também solta. Nunca existe um estado sem saída pelo mouse.
 - **J4 —** A linha da palavra atual fica numa altura fixa da janela (cerca de 40% da
   altura), mesmo em parágrafos maiores que a janela, e a rolagem acompanha a narração com
@@ -31,7 +33,10 @@ Verificação manual (rodando o app).
   (ou arrastam a janela), então barra e palavras nunca disputam o mouse. Barra e linha de
   progresso também não disputam: com o mouse sobre a barra, o clique é sempre da barra, e a
   linha de progresso só responde fora dela. A imagem (**J6**)
-  termina acima da faixa.
+  termina acima da faixa. Numa janela estreita, em que os controles não cabem numa linha
+  (por exemplo, no modo vertical, **J18**), a barra e a faixa crescem para cima em duas
+  fileiras: a aparência (letra, cores e opacidades) em cima, ao lado do capítulo, e a
+  reprodução (velocidade, pulos, tocar, fixar, fechar) embaixo. Nenhum botão fica cortado.
 - **J6 —** As imagens aparecem ao lado do texto, nunca por cima (detalhes em
   [layout.md](layout.md)), com transição suave. Clicar na imagem não a fecha: ela entra e sai sozinha (**R5**). Abrir o app ou voltar
   ao modo de várias linhas com uma imagem à mostra também abre o espaço dela.

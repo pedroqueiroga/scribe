@@ -586,7 +586,7 @@ Window {
             id: dockArea
             enabled: !win.oneline
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-            height: win.dock
+            height: win.dock + bar.height - 34
             z: 1
             hoverEnabled: true
             onPressed: if (!reader.locked) win.startSystemMove()
@@ -599,7 +599,7 @@ Window {
             anchors { left: parent.left; right: parent.right; bottom: progress.top }
             anchors.leftMargin: win.pad
             anchors.rightMargin: win.pad - 6
-            height: 34
+            height: compact ? 62 : 34
             opacity: win.barShown ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: 180 } }
@@ -612,7 +612,7 @@ Window {
                     anchors.left: undefined; anchors.right: undefined; anchors.bottom: undefined
                 }
                 ParentChange { target: bar; parent: barPop.contentItem; x: 10; y: 0 }
-                PropertyChanges { target: bar; width: controls.implicitWidth + 8 }
+                PropertyChanges { target: bar; width: look.implicitWidth + play.implicitWidth + 10 }
             }
 
             // fundo próprio: os controles continuam legíveis com o painel transparente
@@ -625,9 +625,9 @@ Window {
             }
 
             Text {
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenter: look.verticalCenter
                 anchors.left: parent.left
-                anchors.right: controls.left
+                anchors.right: look.left
                 anchors.rightMargin: 12
                 elide: Text.ElideRight
                 visible: !win.oneline
@@ -636,10 +636,15 @@ Window {
                 font.family: win.face; font.pixelSize: 12
             }
 
+            // J5: aparência (look) e reprodução (play); sem espaço para as duas numa linha,
+            // a barra cresce para cima e a aparência vai para uma fileira própria
+            readonly property bool compact: !win.oneline
+                && width < look.implicitWidth + play.implicitWidth + 2 + 80
             Row {
-                id: controls
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
+                id: look
+                anchors.right: bar.compact ? parent.right : play.left
+                anchors.rightMargin: bar.compact ? 0 : 2
+                y: bar.compact ? 4 : (parent.height - height) / 2
                 spacing: 2
 
                 // J5: botão com ícone desenhado (filhos, numa área de 18×18) ou texto curto,
@@ -786,6 +791,12 @@ Window {
                       Rectangle { anchors.centerIn: parent; width: 14; height: 14; radius: 3
                                   color: Qt.rgba(0.95, 0.93, 0.89, 0.12 + 0.75 * reader.bgOpacity)
                                   border.width: 1.5; border.color: win.paper } }
+            }
+            Row {
+                id: play
+                anchors.right: parent.right
+                y: bar.compact ? parent.height - height - 4 : (parent.height - height) / 2
+                spacing: 2
                 Btn { text: reader.speed.toFixed(2).replace(/0$/, "") + "×"
                       tip: "Velocidade (clique: mais rápido; botão direito: mais devagar)"
                       onClicked: reader.adjustSpeed(1)
@@ -1010,19 +1021,25 @@ Window {
         }
 
         // ------------------------------------------------------------ soltar (J3)
-        // cadeado aberto, na margem direita (onde nunca há texto)
+        // cadeado aberto encostado na parede esquerda, na margem onde nunca há texto: na
+        // altura da barra (escondida enquanto atravessa), ou no meio da linha da faixa (O)
         Item {
             id: releaseBtn
             z: 4
             visible: reader.passClicks
-            anchors { top: parent.top; right: parent.right; topMargin: 7; rightMargin: 6 }
-            width: 18; height: 20
+            width: 18; height: 24
+            x: (win.pad - 8 - width) / 2           // no vão entre a parede e a fita
+            y: win.oneline ? (reader.stripMargins(win.height)[0] + win.height
+                              - reader.stripMargins(win.height)[1] - height) / 2
+                           : bar.y + play.y + (play.height - height) / 2
+            onYChanged: if (reader.passClicks) Qt.callLater(win.updateInputRegion)
             opacity: releaseMa.containsMouse ? 1 : 0.55
             Behavior on opacity { NumberAnimation { duration: 150 } }
             // cadeado aberto em vetor: haste em arco com a perna esquerda solta
             Shape {
                 anchors.centerIn: parent
                 width: 16; height: 18
+                scale: win.oneline ? 0.75 : 1      // menor na faixa de uma linha
                 preferredRendererType: Shape.CurveRenderer
                 ShapePath {   // haste
                     strokeColor: win.ribbon; strokeWidth: 1.8
@@ -1054,7 +1071,6 @@ Window {
             MouseArea {
                 id: releaseMa
                 anchors.fill: parent
-                anchors.margins: -3
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: reader.toggleLock()      // soltar também desliga o atravessar (R10)
