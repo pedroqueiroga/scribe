@@ -1,0 +1,10 @@
+/* Modo completo (specs/completo.md, C13): vem depois das folhas de estilo do livro */
+.scribe-page { max-width: 44em; margin: 0 auto; padding: 40vh 2.4em 60vh; box-sizing: border-box; }
+.scribe-txt { font-family: Georgia, "Noto Serif", serif; font-size: 1.15rem; line-height: 1.6; }
+.scribe-txt p { white-space: pre-wrap; margin: 0 0 1em; }
+.scribe-txt h2 { white-space: pre-wrap; margin: 2.2em 0 1em; font-size: 1.5em; }
+
+[data-w] { cursor: pointer; }
+::highlight(scribe-past) { background-color: rgba(217, 178, 95, 0.22); }
+::highlight(scribe-now) { background-color: rgba(217, 178, 95, 0.66); }
+::highlight(scribe-dim) { background-color: rgba(217, 178, 95, 0.26); }

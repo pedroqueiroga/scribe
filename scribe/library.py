@@ -9,10 +9,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import time
 import unicodedata
 from pathlib import Path
 
+BOOK_EXT = {".epub", ".txt"}                                      # C1
 AUDIO_EXT = {".m4b", ".m4a", ".mp3", ".ogg", ".opus", ".flac", ".wav", ".aac"}
 
 
@@ -82,10 +84,14 @@ class Library:
             bid = self.find(names[0])
             return bid, self._check_files(self.data["books"][bid])
 
-        epubs = [f for f in files if f.suffix.lower() == ".epub"]
+        if any(f.suffix.lower() == ".pdf" for f in files):                 # C1
+            raise SystemExit("PDF ainda não é aceito como livro; use o .epub ou um .txt.")
+        # C1: EPUB ou TXT; numa pasta com os dois, vale o EPUB
+        epubs = ([f for f in files if f.suffix.lower() == ".epub"]
+                 or [f for f in files if f.suffix.lower() in BOOK_EXT])
         audios = [f for f in files if f.suffix.lower() in AUDIO_EXT]
         if len(epubs) != 1:
-            raise SystemExit("Preciso de exatamente um .epub.")
+            raise SystemExit("Preciso de exatamente um livro (.epub ou .txt).")
         epub = epubs[0]
         bid = book_id(epub)
         entry = self.data["books"].get(bid, {})
@@ -130,7 +136,7 @@ class Library:
                 if r["num"] == int(name):
                     return r["bid"]
             raise SystemExit(f"Não há livro número {name}. Veja: scribe list")
-        key = _fold(name.removesuffix(".epub").removesuffix(".EPUB"))
+        key = _fold(re.sub(r"\.(epub|txt)$", "", name, flags=re.I))
         exact = [r for r in rows if _fold(Path(r["epub"]).stem) == key]
         if len(exact) == 1:
             return exact[0]["bid"]

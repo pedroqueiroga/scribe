@@ -18,10 +18,13 @@ Window {
     // G: espaço reservado à direita para a imagem (painel + espaçamento)
     readonly property real imageReserve: reader.imagePanelWidth > 0 ? reader.imagePanelWidth + reader.imageGap : 0
     readonly property int dock: 48         // J5: faixa da barra (34) + progresso (10) + folga
+    // J19: modo completo, a página do livro no lugar do overlay
+    readonly property bool full: reader.fullMode
     property bool browsing: false          // J4: texto solto da narração (roda do mouse)
     function resync() {                    // J4: volta o texto para a palavra narrada
         browsing = false
         list.requestFollow(true)
+        if (page.item) page.item.resync()  // J20
     }
     // HoverHandler no painel: recebe a passagem do mouse mesmo com o cursor sobre o texto
     // (a MouseArea de fundo perdia o hover para os parágrafos, e a barra não aparecia)
@@ -34,16 +37,16 @@ Window {
     Timer { id: barHide; interval: 350; onTriggered: win.barShown = false }
 
     width: 760; height: 300
-    minimumWidth: 320; minimumHeight: reader.onelineHeight
-    // O2/J14: o modo de uma linha é consequência da altura da janela
-    readonly property bool oneline: height < reader.onelineThreshold
+    minimumWidth: 320; minimumHeight: full ? 240 : reader.onelineHeight
+    // O2/J14: o modo de uma linha é consequência da altura da janela (J19: menos no completo)
+    readonly property bool oneline: !full && height < reader.onelineThreshold
     // G7: janela mais alta que larga põe as imagens no texto (a ponte usa a largura de antes
     // do painel). Depende do modo atual (folga), por isso não é uma ligação; e é adiada
     // para painel e largura já terem se acertado juntos.
     property bool vertical: false
     function updateVertical() {
-        vertical = reader.isVertical(width, height,
-                                     height < reader.onelineThreshold, vertical)
+        vertical = !full && reader.isVertical(width, height,
+                                              height < reader.onelineThreshold, vertical)
     }
     onVerticalChanged: Qt.callLater(syncImage)
     readonly property real lineH: reader.linePitch          // O1: medida na tela
@@ -55,12 +58,35 @@ Window {
     flags: Qt.Window | Qt.FramelessWindowHint
            | (reader.onTop ? Qt.WindowStaysOnTopHint : 0)
 
-    Component.onCompleted: {
-        const g = reader.geometry
+    function applyGeometry(g) {
         if (g.length === 4) {
             if (g[0] >= 0) { x = g[0]; y = g[1]; width = g[2] }
             height = g[3]
         }
+    }
+    // C12: geometria padrão do modo completo, na tela da janela
+    function screenRect() {
+        return [screen.virtualX, screen.virtualY, screen.width, screen.height]
+    }
+    function toggleFull() {                       // J19, C11, C12
+        saveGeo.stop()
+        reader.saveGeometry(x, y, width, height)  // a do modo que sai
+        if (!full) syncImageOff()
+        else if (page.item) { page.holding = true; page.item.release() }
+        const r = screenRect()
+        applyGeometry(reader.toggleFull(r[0], r[1], r[2], r[3]))
+        browsing = false
+        Qt.callLater(updateVertical)
+        Qt.callLater(syncImage)
+        Qt.callLater(() => list.requestFollow(false))
+    }
+    property bool closingDown: false
+    // J11: fechar pelo gerenciador de janelas passa pelo mesmo caminho do botão
+    // (o quit do Qt fecha as janelas de novo: aí já pode)
+    onClosing: (close) => { close.accepted = closingDown; if (!closingDown) reader.quit() }
+    Component.onCompleted: {
+        const r = screenRect()
+        applyGeometry(full ? reader.fullGeometry(r[0], r[1], r[2], r[3]) : reader.geometry)
         lastLine = reader.linePitch
         updateVertical()
         if (reader.passClicks) {                 // abriu já atravessando: aplica e avisa
@@ -78,6 +104,12 @@ Window {
         target: reader
         function onVisibilityToggleRequested() { win.visible = !win.visible }
         function onJumped() { win.resync() }          // J4: pulo no áudio ressincroniza
+        function onClosing() {                        // J11: esvazia a página antes de sair
+            win.closingDown = true
+            win.visible = false
+            if (page.item) page.item.release()
+            else reader.finishQuit()
+        }
     }
 
     // J3: atravessar cliques, menos no botão "soltar"
@@ -241,7 +273,7 @@ Window {
     function syncImage() {
         // pela altura, e não por `oneline`: na abertura a ligação ainda não se atualizou
         const many = win.height >= reader.onelineThreshold
-        const side = many && !win.vertical                                  // G7
+        const side = many && !win.vertical && !win.full                     // G7, J19
         const want = reader.image !== "" && side ? reader.image : ""
         if (want === win.shownImage) return
         win.shownImage = want
@@ -253,6 +285,13 @@ Window {
             if (w > 0) win.width = w
         }
     }
+    // J19: ao entrar no modo completo, a janela devolve o espaço da imagem antes de trocar
+    function syncImageOff() {
+        if (shownImage === "") return
+        shownImage = ""
+        const w = reader.restoreWidth()
+        if (w > 0) win.width = w
+    }
     Connections {
         target: reader
         function onImageChanged() { win.syncImage() }
@@ -262,9 +301,11 @@ Window {
     Rectangle {
         id: panel
         anchors.fill: parent
-        radius: 14
+        radius: win.full ? 0 : 14
         readonly property color bgC: reader.bgColor
-        color: reader.bgImage !== "" ? "transparent" : Qt.rgba(bgC.r, bgC.g, bgC.b, reader.bgOpacity)
+        // J19: no modo completo a janela é opaca, com a faixa da barra escura
+        color: win.full ? win.ink
+             : reader.bgImage !== "" ? "transparent" : Qt.rgba(bgC.r, bgC.g, bgC.b, reader.bgOpacity)
 
         // R12/J15: imagem de fundo, cobrindo o painel e cortada nas bordas arredondadas
         Item {
@@ -276,7 +317,7 @@ Window {
         }
         Image {
             anchors.fill: parent
-            visible: reader.bgImage !== ""
+            visible: reader.bgImage !== "" && !win.full
             source: reader.bgImage
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
@@ -310,9 +351,38 @@ Window {
         }
 
         // ------------------------------------------------------------ texto (J4)
+        // ------------------------------------------------------------ página (J19–J22)
+        Loader {
+            id: page
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            height: parent.height - win.dock - bar.height + 34
+            // ao voltar para o overlay a view fica até esvaziar a página (J11)
+            property bool holding: false
+            active: win.full || holding
+            visible: win.full
+            source: "fullpage.qml"
+            onLoaded: {
+                item.browse.connect(() => { win.browsing = true })
+                item.key.connect(win.windowKey)
+                item.released.connect(() => {
+                    if (win.closingDown) reader.finishQuit()
+                    else if (!win.full) page.holding = false
+                })
+            }
+        }
+        Text {
+            anchors.centerIn: page
+            visible: win.full && (page.status !== Loader.Ready || !page.item.ready)
+            text: page.status === Loader.Error ? "o modo completo precisa do QtWebEngine"
+                                               : "preparando o livro…"
+            color: win.paper; opacity: 0.6
+            font.family: win.face; font.pixelSize: 15; font.italic: true
+        }
+
         ListView {
             id: list
             objectName: "lst"
+            visible: !win.full
             anchors.fill: parent
             // J14: no modo de uma linha a lista tem a altura de uma linha, centralizada
             anchors.topMargin: win.oneline ? reader.stripMargins(win.height)[0] : 0
@@ -600,7 +670,7 @@ Window {
             anchors.leftMargin: win.pad
             anchors.rightMargin: win.pad - 6
             height: compact ? 62 : 34
-            opacity: win.barShown ? 1 : 0
+            opacity: win.barShown || (win.full && !reader.passClicks) ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: 180 } }
             HoverHandler { id: barHover }
@@ -727,10 +797,37 @@ Window {
                 }
                 Item { width: 6; height: 1; visible: win.browsing }
 
-                Btn { text: "A"; size: 11; tip: "Diminuir a letra"; onClicked: reader.adjustFont(-2) }
-                Btn { text: "A"; size: 17; tip: "Aumentar a letra"; onClicked: reader.adjustFont(2) }
-                // R8: cor do texto (abre o seletor) e opacidade do texto
+                // J19: livro aberto; ativo no modo completo
+                Btn { id: fullBtn; active: win.full
+                      tip: win.full ? "Voltar ao overlay" : "Modo completo (o livro como num leitor)"
+                      onClicked: win.toggleFull()
+                      Shape {
+                          anchors.fill: parent
+                          preferredRendererType: Shape.CurveRenderer
+                          ShapePath {   // duas páginas abertas
+                              strokeColor: fullBtn.ink; strokeWidth: 1.4
+                              fillColor: win.full ? Qt.rgba(0.85, 0.70, 0.37, 0.25) : "transparent"
+                              joinStyle: ShapePath.RoundJoin
+                              startX: 9; startY: 4.5
+                              PathQuad { x: 1.5; y: 3.5; controlX: 5; controlY: 2.5 }
+                              PathLine { x: 1.5; y: 14.5 }
+                              PathQuad { x: 9; y: 15.5; controlX: 5; controlY: 13.5 }
+                              PathQuad { x: 16.5; y: 14.5; controlX: 13; controlY: 13.5 }
+                              PathLine { x: 16.5; y: 3.5 }
+                              PathQuad { x: 9; y: 4.5; controlX: 13; controlY: 2.5 }
+                              PathLine { x: 9; y: 15.5 }
+                          }
+                      } }
+                Item { width: 6; height: 1 }
+                Btn { text: "A"; size: 11; tip: win.full ? "Diminuir o zoom: " + Math.round(reader.zoom * 100) + "%"
+                                                        : "Diminuir a letra"
+                      onClicked: reader.adjustFont(-2) }
+                Btn { text: "A"; size: 17; tip: win.full ? "Aumentar o zoom: " + Math.round(reader.zoom * 100) + "%"
+                                                        : "Aumentar a letra"
+                      onClicked: reader.adjustFont(2) }
+                // R8: cor do texto (abre o seletor) e opacidade do texto (J19: não no completo)
                 Item {
+                    visible: !win.full
                     width: 26; height: 26
                     Rectangle {
                         anchors.centerIn: parent
@@ -747,7 +844,8 @@ Window {
                         onClicked: win.openTextColor()
                     }
                 }
-                Btn { tip: "Opacidade do texto: " + Math.round(reader.textOpacity * 100) + "%"
+                Btn { visible: !win.full
+                      tip: "Opacidade do texto: " + Math.round(reader.textOpacity * 100) + "%"
                       onClicked: reader.setTextOpacity(reader.textOpacity <= 0.41 ? 1.0 : reader.textOpacity - 0.15)
                       // um "A" com a transparência atual do texto, sobre um xadrezinho
                       Grid {
@@ -760,6 +858,7 @@ Window {
                              color: win.paper; opacity: reader.textOpacity } }
                 // J15: fundo atual; clicar abre o menu de fundo
                 Item {
+                    visible: !win.full
                     width: 26; height: 26
                     Rectangle {
                         id: bgSwatch
@@ -785,7 +884,8 @@ Window {
                         onClicked: bgMenu.popup(bgSwatch, 0, bgSwatch.height + 6)
                     }
                 }
-                Btn { tip: "Opacidade do fundo: " + Math.round(reader.bgOpacity * 100) + "%"
+                Btn { visible: !win.full
+                      tip: "Opacidade do fundo: " + Math.round(reader.bgOpacity * 100) + "%"
                       onClicked: reader.setBgOpacity(reader.bgOpacity >= 0.95 ? 0 : reader.bgOpacity + 0.15)
                       // quadrado com o preenchimento na opacidade atual do fundo
                       Rectangle { anchors.centerIn: parent; width: 14; height: 14; radius: 3
@@ -1170,10 +1270,17 @@ Window {
                  onTriggered: reader.setBgImage("") }
     }
 
-    Shortcut { sequence: "Space"; onActivated: reader.togglePlay() }
-    Shortcut { sequence: "Left"; onActivated: reader.skip(-10) }
-    Shortcut { sequence: "Right"; onActivated: reader.skip(10) }
-    Shortcut { sequence: "Up"; onActivated: reader.jumpBlock(-1) }
-    Shortcut { sequence: "Down"; onActivated: reader.jumpBlock(1) }
-    Shortcut { sequence: "Escape"; onActivated: win.visible = false }
+    // teclas da janela; com o foco na página do modo completo, elas chegam por ela (J22)
+    function windowKey(name) {
+        ({ "Space": () => reader.togglePlay(),
+           "ArrowLeft": () => reader.skip(-10), "ArrowRight": () => reader.skip(10),
+           "ArrowUp": () => reader.jumpBlock(-1), "ArrowDown": () => reader.jumpBlock(1),
+           "Escape": () => { win.visible = false } })[name]()
+    }
+    Shortcut { sequence: "Space"; onActivated: win.windowKey("Space") }
+    Shortcut { sequence: "Left"; onActivated: win.windowKey("ArrowLeft") }
+    Shortcut { sequence: "Right"; onActivated: win.windowKey("ArrowRight") }
+    Shortcut { sequence: "Up"; onActivated: win.windowKey("ArrowUp") }
+    Shortcut { sequence: "Down"; onActivated: win.windowKey("ArrowDown") }
+    Shortcut { sequence: "Escape"; onActivated: win.windowKey("Escape") }
 }

@@ -14,9 +14,13 @@ PNG = base64.b64decode(
 
 def make_epub(path: Path, chapters: list[tuple[str, str, str]], lang: str = "en",
               title: str = "Livro de Teste", images: dict[str, bytes] | None = None,
-              in_toc: set[str] | None = None) -> Path:
+              in_toc: set[str] | None = None, files: dict[str, bytes] | None = None,
+              raw: dict[str, str] | None = None) -> Path:
     """Cria um EPUB. `chapters` = [(nome_arquivo, titulo_html, corpo_html)].
-    `in_toc` limita quais arquivos entram no sumário (padrão: todos)."""
+    `in_toc` limita quais arquivos entram no sumário (padrão: todos).
+    `files` acrescenta outros arquivos (css, fontes), pelo caminho dentro do EPUB.
+    `raw` troca o XHTML inteiro de um capítulo (o ebooklib descarta `<style>` e os
+    atributos do `<body>` ao gravar)."""
     book = epub.EpubBook()
     book.set_identifier("id-teste")
     book.set_title(title)
@@ -36,7 +40,19 @@ def make_epub(path: Path, chapters: list[tuple[str, str, str]], lang: str = "en"
     book.add_item(epub.EpubNcx())
     book.add_item(epub.EpubNav())
     book.spine = items
+    for name, data in (files or {}).items():
+        book.add_item(epub.EpubItem(uid=name, file_name=name, content=data,
+                                    media_type="text/css" if name.endswith(".css")
+                                    else "application/octet-stream"))
     epub.write_epub(str(path), book)
+    if raw:
+        import zipfile
+        with zipfile.ZipFile(path) as z:
+            entries = [(i, z.read(i)) for i in z.infolist()]
+        with zipfile.ZipFile(path, "w") as z:
+            for info, data in entries:
+                name = info.filename.removeprefix("EPUB/")
+                z.writestr(info, raw[name].encode() if name in raw else data)
     return path
 
 

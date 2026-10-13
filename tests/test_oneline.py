@@ -65,7 +65,7 @@ def test_O5_flag_oneline_chega_a_janela(monkeypatch):
     import scribe.cli as cli
     import scribe.overlay as overlay
     calls = []
-    monkeypatch.setattr(overlay, "main", lambda paths, model, oneline=False: calls.append((paths, oneline)))
+    monkeypatch.setattr(overlay, "main", lambda paths, model, oneline=False, **kw: calls.append((paths, oneline)))
     cli.main(["play", "livro", "--oneline"])
     cli.main(["play", "livro"])
     assert calls == [(["livro"], True), (["livro"], False)]

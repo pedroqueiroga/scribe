@@ -71,18 +71,23 @@ def normalize(token: str, lang: str = "en") -> list[str]:
     return out
 
 
+SOFT_HYPHEN = "­"
+SPACES = " \t\r\n    "   # separam palavras
+NOTEREF_SEL = ('[role="doc-noteref"], a[epub\\:type="noteref"], sup a, '
+               'a[href*="footnote"], a[href*="endnote"], [role="doc-pagebreak"], '
+               'script, style')                                # E4: fora do texto
+
+
 def _clean_text(s: str) -> str:
-    s = s.replace("­", "")  # hifenização suave
-    s = re.sub(r"[ \t\r\n    ]+", " ", s)
+    s = s.replace(SOFT_HYPHEN, "")  # hifenização suave
+    s = re.sub(f"[{SPACES}]+", " ", s)
     return s.strip()
 
 
 def _text_of(el: Tag) -> str:
     """Texto de um bloco, sem quebrar palavras com spans (capitular) e sem chamadas de nota."""
     el = BeautifulSoup(str(el), "lxml").find(el.name)
-    for bad in el.select('[role="doc-noteref"], a[epub\\:type="noteref"], sup a, '
-                         'a[href*="footnote"], a[href*="endnote"], [role="doc-pagebreak"], '
-                         'script, style'):
+    for bad in el.select(NOTEREF_SEL):
         bad.decompose()
     for br in el.find_all("br"):
         br.replace_with(" ")
@@ -100,14 +105,16 @@ class _Extractor:
         self.lang = lang
         self.image_dir = image_dir
         self.blocks: list[dict] = []
+        self.sources: list = []   # elemento (ou texto solto) de origem de cada bloco
 
-    def add_text(self, kind: str, text: str, href: str):
+    def add_text(self, kind: str, text: str, href: str, source=None):
         if not text:
             return
         words = []
         for tok in text.split(" "):
             words.append({"t": tok, "n": normalize(tok, self.lang)})
         self.blocks.append({"kind": kind, "text": text, "words": words})
+        self.sources.append(source)
 
     def add_image(self, img: Tag, href: str):
         src = posixpath.normpath(posixpath.join(posixpath.dirname(href), img["src"]))
@@ -120,13 +127,14 @@ class _Extractor:
             self.image_dir.mkdir(parents=True, exist_ok=True)
             target.write_bytes(item.get_content())
         self.blocks.append({"kind": "img", "src": name, "alt": img.get("alt", ""), "words": []})
+        self.sources.append(img)
 
     def walk(self, el: Tag, href: str):
         for child in el.children:
             if isinstance(child, NavigableString):
                 text = _clean_text(str(child))
                 if text and el.name in CONTAINER_TAGS and el.name not in ("ol", "ul", "table", "tr"):
-                    self.add_text("p", text, href)
+                    self.add_text("p", text, href, child)
                 continue
             if not isinstance(child, Tag):
                 continue
@@ -142,7 +150,7 @@ class _Extractor:
                 kind = "h" if re.fullmatch(r"h\d", name) else ("li" if name == "li" else "p")
                 if _is_footnote(child):
                     kind = "note"
-                self.add_text(kind, _text_of(child), href)
+                self.add_text(kind, _text_of(child), href, child)
             elif name in CONTAINER_TAGS or name in BLOCK_TAGS:
                 self.walk(child, href)
             else:
@@ -152,7 +160,7 @@ class _Extractor:
                         self.add_image(img, href)
                 text = _text_of(child)
                 if text:
-                    self.add_text("p", text, href)
+                    self.add_text("p", text, href, child)
 
 
 def _is_footnote(el: Tag) -> bool:
@@ -182,34 +190,47 @@ def _toc_titles(book: epub.EpubBook) -> dict[str, str]:
     return titles
 
 
-def extract(epub_path: str, cache: Path) -> dict:
-    book = epub.read_epub(epub_path, options={"ignore_ncx": False})
+def _language(book: epub.EpubBook) -> str:
     lang_meta = book.get_metadata("DC", "language")
     lang = (lang_meta[0][0] if lang_meta else "en").lower().split("-")[0]
-    lang = "pt" if lang.startswith("pt") else ("en" if lang != "pt" else lang)
+    return "pt" if lang.startswith("pt") else ("en" if lang != "pt" else lang)
+
+
+def walk_spine(book: epub.EpubBook, lang: str, image_dir: Path):
+    """Percorre o spine: (item, soup, extrator) de cada documento com corpo."""
+    for idref, linear in book.spine:
+        item = book.get_item_with_id(idref)
+        if item is None or item.get_type() != ebooklib.ITEM_DOCUMENT:
+            continue
+        soup = BeautifulSoup(item.content, "lxml")  # bruto: get_content() descarta o <title>
+        if soup.body is None:
+            continue
+        ex = _Extractor(book, lang, image_dir)
+        ex.walk(soup.body, item.get_name())
+        yield item, soup, ex
+
+
+def read(epub_path: str) -> epub.EpubBook:
+    return epub.read_epub(epub_path, options={"ignore_ncx": False})
+
+
+def extract(epub_path: str, cache: Path) -> dict:
+    book = read(epub_path)
+    lang = _language(book)
     title_meta = book.get_metadata("DC", "title")
     title = title_meta[0][0] if title_meta else Path(epub_path).stem
     titles = _toc_titles(book)
 
     chapters = []
     image_dir = cache / "images"
-    for idref, linear in book.spine:
-        item = book.get_item_with_id(idref)
-        if item is None or item.get_type() != ebooklib.ITEM_DOCUMENT:
-            continue
-        soup = BeautifulSoup(item.content, "lxml")  # bruto: get_content() descarta o <title>
-        body = soup.body
-        if body is None:
-            continue
-        ex = _Extractor(book, lang, image_dir)
-        ex.walk(body, item.get_name())
+    for item, soup, ex in walk_spine(book, lang, image_dir):
         if not ex.blocks:
             continue
         head = soup.title.get_text(strip=True) if soup.title else ""
         chapters.append({
             "index": len(chapters),
             "href": item.get_name(),
-            "title": titles.get(item.get_name()) or head or idref,
+            "title": titles.get(item.get_name()) or head or item.get_id(),
             "blocks": ex.blocks,
         })
 

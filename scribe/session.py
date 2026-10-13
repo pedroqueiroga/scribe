@@ -22,6 +22,9 @@ def load_book(epub_path: str, cache: Path) -> dict:
     path = cache / "book.json"
     if path.exists():
         return json.loads(path.read_text())
+    if epub_path.lower().endswith(".txt"):                                 # C1
+        from . import txt
+        return txt.extract(epub_path, cache)
     from . import epub
     print("[epub] extraindo texto…", file=sys.stderr)
     data = epub.extract(epub_path, cache)

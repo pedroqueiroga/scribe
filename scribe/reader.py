@@ -22,9 +22,12 @@ SEEK_LEAD = 0.05           # R1: começa um tiquinho antes da palavra
 DEFAULT_PREFS = {"font_size": 22, "bg_opacity": 0.55, "locked": False,
                  "click_through": False, "lock_by_pass": False, "geometry": [],
                  "text_color": "#f3eee4", "text_opacity": 1.0,
-                 "bg_color": "#15131f", "bg_image": ""}
+                 "bg_color": "#15131f", "bg_image": "",
+                 "full": False, "full_geometry": [], "full_zoom": 1.0}   # C11, C12, C15
 PREF_LIMITS = {"font_size": (12, 64), "bg_opacity": (0.0, 1.0),
-               "text_opacity": (0.2, 1.0)}                         # R8
+               "text_opacity": (0.2, 1.0), "full_zoom": (0.5, 3.0)}  # R8, C15
+ZOOM_STEP = 0.1                                                    # C15
+FULL_SIZE = (900, 0.85)    # C12: largura e fração da altura da tela no modo completo
 COLOR_RE = re.compile(r"#[0-9a-fA-F]{6}")
 
 # R6: transparência de cada estilo do karaokê (multiplica a opacidade do texto, R8)
@@ -173,8 +176,10 @@ class Reader:
         self.seek(self.position + dt)
 
     def seek_word(self, row: int, k: int):                                 # R1
+        self.seek_word_id(self.session.blocks[row]["words"][k]["id"])
+
+    def seek_word_id(self, wid: int):                                      # R1, C14
         al = self.session.aligner
-        wid = self.session.blocks[row]["words"][k]["id"]
         for w in self.session.words[wid:]:
             if al.state[w["id"]] == NARRATED:
                 self.seek(max(0.0, al.ws[w["id"]] - SEEK_LEAD))
@@ -323,6 +328,28 @@ class Reader:
         self.set_pref("locked", True)
         self.set_pref("click_through", True)
 
+    # ---------------------------------------------------------------- modo completo
+
+    def toggle_full(self) -> list:
+        """C11/C12: troca de modo; devolve a geometria salva do modo que entra."""
+        self.set_pref("full", not self.prefs["full"])
+        return list(self.prefs[self._geometry_key()])
+
+    def _geometry_key(self) -> str:
+        return "full_geometry" if self.prefs["full"] else "geometry"
+
+    def save_geometry(self, geometry: list):                               # C12
+        self.set_pref(self._geometry_key(), list(geometry))
+
+    def zoom(self, step: int):                                             # C15
+        self.set_pref("full_zoom", round(self.prefs["full_zoom"] + step * ZOOM_STEP, 2))
+
+    def highlight(self) -> dict:
+        """C13: o que a página precisa para o marca-texto. Num trecho só do áudio a palavra
+        continua sendo a última do livro (a sessão só a troca na próxima do livro)."""
+        return {"word": self.current_word, "row": self.current_row,
+                "synced": self.current_word is not None}
+
     def window_mode(self) -> dict:                                         # R10
         locked = bool(self.prefs["locked"])
         return {"on_top": locked, "click_through": locked and bool(self.prefs["click_through"])}
@@ -357,3 +384,10 @@ class Reader:
     def close(self):                                                       # R9, R11
         self.player.pause = True          # R11: silêncio antes de qualquer outra coisa
         self.save()
+
+
+def full_default_geometry(sx: int, sy: int, sw: int, sh: int) -> list:   # C12
+    """Geometria do modo completo sem nada salvo: centralizada na tela."""
+    w = min(FULL_SIZE[0], sw)
+    h = round(sh * FULL_SIZE[1])
+    return [sx + (sw - w) // 2, sy + (sh - h) // 2, w, h]

@@ -70,7 +70,7 @@ def cmd_check(args):
 
 def cmd_play(args):
     from . import overlay
-    overlay.main(args.paths, args.model, oneline=args.oneline)
+    overlay.main(args.paths, args.model, oneline=args.oneline, full=args.full)
 
 
 def main(argv=None):
@@ -82,6 +82,8 @@ def main(argv=None):
     pl.add_argument("--model", default="small", help="modelo do whisper (small, medium…)")
     pl.add_argument("--oneline", action="store_true",
                     help="abre no modo de uma linha (janela baixa, só a linha narrada)")
+    pl.add_argument("--full", action="store_true",
+                    help="abre no modo completo (o livro inteiro, como num leitor de e-book)")
     pl.set_defaults(func=cmd_play)
 
     ls = sub.add_parser("list", help="mostra os livros registrados")

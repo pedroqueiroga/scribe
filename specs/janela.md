@@ -97,3 +97,22 @@ Verificação manual (rodando o app).
   A passagem do foco da palavra para a imagem e de volta (**G10**) é uma rolagem suave e
   mais lenta que a da troca de linha, para a imagem ficar centralizada nem que seja por um
   momento.
+- **J19 —** Modo completo ([completo.md](completo.md)): um botão de livro aberto na barra
+  (**J5**) alterna entre o overlay e o modo completo, com o áudio tocando. No modo completo
+  a página do livro ocupa a janela acima da faixa da barra, opaca, com o fundo do próprio
+  livro (papel claro, se o livro não definir um). Não há modo de uma linha, modo vertical
+  nem painel de imagem: as imagens estão no lugar delas na página. Os controles de
+  aparência do overlay (cor e opacidade do texto, fundo) somem da barra; os de letra viram
+  zoom (**C15**). A janela continua sem borda, arrastável pela faixa da barra e
+  redimensionável pelas bordas, e fixar e atravessar cliques (**J3**) valem como no overlay.
+- **J20 —** Na página, a linha da palavra atual fica a cerca de 40% da altura, e a rolagem
+  acompanha a narração com animação suave, como no **J4**: rolar com o mouse solta a página,
+  a mira de recentralizar aparece na barra, e ela ou qualquer pulo no áudio voltam para a
+  palavra narrada. Durante o foco numa imagem (**G10**), a página centraliza a imagem.
+- **J21 —** Abrir o modo completo num livro grande não trava o áudio. A página abre já na
+  palavra atual, sem passar pelo começo do livro.
+- **J22 —** Clicar numa palavra (**C14**) pula o áudio; links internos do livro (sumário,
+  notas) rolam a página até o ponto, soltando-a da narração; links externos não abrem nada.
+  Com o foco na página, as teclas da janela continuam valendo como no overlay (espaço toca
+  e pausa, ← → pulam 10 s, ↑ ↓ trocam de parágrafo, Esc esconde); PageUp, PageDown, Home e
+  End rolam a página e a soltam da narração (**J20**).

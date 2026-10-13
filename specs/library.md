@@ -6,8 +6,9 @@ A biblioteca é o registro interno do scribe: todo livro aberto com `scribe play
 preparado com `scribe prepare` fica registrado, com os caminhos absolutos dos arquivos.
 Depois disso, o livro pode ser chamado de qualquer pasta, só pelo nome.
 
-- **L1 — Argumentos.** `scribe play` e `scribe prepare` aceitam o EPUB e o áudio em
-  qualquer ordem, ou uma pasta que contenha os dois. Cada arquivo é reconhecido pela
+- **L1 — Argumentos.** `scribe play` e `scribe prepare` aceitam o livro (EPUB ou TXT,
+  **C1** em [completo.md](completo.md)) e o áudio em qualquer ordem, ou uma pasta que
+  contenha os dois. Onde esta spec diz EPUB, vale qualquer formato de livro aceito. Cada arquivo é reconhecido pela
   extensão. Caminhos relativos são resolvidos a partir da pasta atual e guardados como
   absolutos.
 - **L2 — Memória do par.** Depois da primeira vez, basta o EPUB: o áudio é lembrado.

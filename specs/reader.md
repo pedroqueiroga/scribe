@@ -32,7 +32,8 @@ com um tocador falso.
   imediatamente após um pulo.
 - **R8 — Preferências** (tamanho da fonte, cor do fundo, imagem de fundo, opacidade do
   fundo, cor do texto, opacidade do texto, janela fixa, cliques atravessando, posição e
-  tamanho da janela) são salvas e
+  tamanho da janela, modo completo e zoom da página, **C11**–**C15** em
+  [completo.md](completo.md)) são salvas e
   restauradas nas próximas sessões. A fonte fica entre 12 e 64 pontos, a opacidade do fundo
   entre 0 e 1, e a opacidade do texto entre 0,2 e 1 (abaixo disso o texto sumiria; para
   esconder existe o atalho de **J8**). As cores do texto e do fundo são `#rrggbb`, e um

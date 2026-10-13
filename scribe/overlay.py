@@ -13,7 +13,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 from .align import NARRATED, SKIPPED
 from .layout import GAP, ImageLayout, inline_size, is_vertical
 from . import oneline as one
-from .reader import Reader
+from .reader import Reader, full_default_geometry
 
 HERE = Path(__file__).parent
 TICK_MS = 33
@@ -123,9 +123,17 @@ class Bridge(QObject):
     visibilityToggleRequested = Signal()
     jumped = Signal()                 # J4: um pulo no áudio ressincroniza o texto
     hotkey = Signal(str)
+    pageChanged = Signal()            # C10: a página do modo completo ficou pronta
+    closing = Signal()                # J11: a janela vai fechar
 
-    def __init__(self, app, reader: Reader, model: BlockModel, cache: Path, oneline: bool = False):
+    def __init__(self, app, reader: Reader, model: BlockModel, cache: Path, oneline: bool = False,
+                 book_path: str = ""):
         super().__init__()
+        self.book_path = book_path
+        self._page = ""
+        self._building = False
+        self._closing = False
+        self._quitting = False
         self.app = app
         self.start_oneline = oneline
         self._line = one.estimated_line(reader.prefs["font_size"])   # O1: até a medida chegar
@@ -143,6 +151,9 @@ class Bridge(QObject):
         self.save_timer.timeout.connect(reader.save)
         self.save_timer.start(SAVE_EVERY_MS)
         self.hotkey.connect(self._on_hotkey)
+        self._page_built.connect(self._on_page_built)
+        if reader.prefs["full"]:
+            self._ensure_page()
 
     def _tick(self):
         changed = self.r.tick()
@@ -194,6 +205,11 @@ class Bridge(QObject):
     @Property(int, notify=currentChanged)
     def currentRow(self):
         return self.r.current_row
+
+    @Property(int, notify=currentChanged)
+    def currentWord(self):                            # C13 (-1: nenhuma)
+        w = self.r.highlight()["word"]
+        return -1 if w is None else w
 
     @Property(int, notify=currentChanged)
     def currentCharOffset(self):
@@ -329,8 +345,72 @@ class Bridge(QObject):
 
     @Slot(int)
     def adjustFont(self, d):
-        self.r.set_pref("font_size", self.r.prefs["font_size"] + d)
+        if self.r.prefs["full"]:                      # C15: no modo completo, zoom
+            self.r.zoom(1 if d > 0 else -1)
+        else:
+            self.r.set_pref("font_size", self.r.prefs["font_size"] + d)
         self.prefsChanged.emit()
+
+    # ---------------------------------------------------------------- modo completo
+
+    _page_built = Signal(str)
+
+    @Property(bool, notify=prefsChanged)
+    def fullMode(self):
+        return self.r.prefs["full"]
+
+    @Property(float, notify=prefsChanged)
+    def zoom(self):
+        return self.r.prefs["full_zoom"]
+
+    @Property(str, notify=pageChanged)
+    def pageUrl(self):
+        return self._page
+
+    @Slot(int, int, int, int, result="QVariantList")
+    def toggleFull(self, sx, sy, sw, sh):
+        """C11/C12: troca de modo; devolve a geometria do modo que entra."""
+        g = self.r.toggle_full()
+        if self.r.prefs["full"]:
+            self._ensure_page()
+            if len(g) != 4:
+                g = full_default_geometry(sx, sy, sw, sh)
+        self.prefsChanged.emit()
+        return g
+
+    @Slot(int, int, int, int, result="QVariantList")
+    def fullGeometry(self, sx, sy, sw, sh):
+        """C12: geometria salva do modo completo, ou a padrão."""
+        g = list(self.r.prefs["full_geometry"])
+        return g if len(g) == 4 else full_default_geometry(sx, sy, sw, sh)
+
+    @Slot(int)
+    def seekWordId(self, wid):                        # C14
+        self.r.seek_word_id(wid)
+        self._after_nav()
+
+    def _ensure_page(self):
+        """C10: gera a página numa thread (no livro inteiro leva alguns segundos)."""
+        if self._page or self._building:
+            return
+        self._building = True
+        import threading
+        from . import full
+
+        def work():
+            try:
+                path = full.page(self.book_path, self.r.session.book, self.cache)
+                self._page_built.emit(QUrl.fromLocalFile(str(path)).toString())
+            except Exception as e:
+                print(f"[completo] não consegui gerar a página: {e}", file=sys.stderr)
+                self._page_built.emit("")
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _on_page_built(self, url):
+        self._building = False
+        self._page = url
+        self.pageChanged.emit()
 
     @Property(str, notify=prefsChanged)
     def textColor(self):
@@ -390,7 +470,7 @@ class Bridge(QObject):
 
     @Slot(int, int, int, int)
     def saveGeometry(self, x, y, w, h):
-        self.r.set_pref("geometry", [x, y, int(self.layout.saved_width(w)), h])   # G5
+        self.r.save_geometry([x, y, int(self.layout.saved_width(w)), h])   # G5, C12
 
     @Slot(float, float, float, float, result=float)
     def layoutImage(self, x, w, h, screen_right):
@@ -451,7 +531,20 @@ class Bridge(QObject):
     @Slot()
     def quit(self):
         self.r.player.pause = True        # R11: silêncio já no clique
-        self.app.quit()
+        if self._closing:
+            return
+        self._closing = True
+        # J11: destruir a página do livro inteiro com a acessibilidade ligada inunda a fila
+        # de eventos e trava o processo. A janela primeiro esvazia a página (about:blank) e
+        # avisa por finishQuit; o prazo garante a saída mesmo se o aviso não vier.
+        self.closing.emit()
+        QTimer.singleShot(3000, self.finishQuit)
+
+    @Slot()
+    def finishQuit(self):
+        if not self._quitting:
+            self._quitting = True
+            self.app.quit()
 
     def _on_hotkey(self, action):                       # J8
         {"toggle_play": self.togglePlay,
@@ -466,7 +559,7 @@ class Bridge(QObject):
          }[action]()
 
 
-def main(paths: list[str], model_size: str = "small", oneline: bool = False):
+def main(paths: list[str], model_size: str = "small", oneline: bool = False, full: bool = False):
     from .library import Library
     from .session import Session
 
@@ -477,6 +570,11 @@ def main(paths: list[str], model_size: str = "small", oneline: bool = False):
     fmt = QSurfaceFormat.defaultFormat()
     fmt.setAlphaBufferSize(8)
     QSurfaceFormat.setDefaultFormat(fmt)
+    try:                                  # modo completo; precisa vir antes da aplicação
+        from PySide6.QtWebEngineQuick import QtWebEngineQuick
+        QtWebEngineQuick.initialize()
+    except ImportError:
+        pass
     app = QGuiApplication(sys.argv)
     app.setApplicationName("scribe")
 
@@ -487,9 +585,11 @@ def main(paths: list[str], model_size: str = "small", oneline: bool = False):
 
     player = MpvPlayer(entry["audio"])
     reader = Reader(session, player, lib, bid)
+    if full:                                                            # C11
+        reader.set_pref("full", True)
     session.start_worker(reader.position)
     model = BlockModel(reader, cache)
-    bridge = Bridge(app, reader, model, cache, oneline=oneline)
+    bridge = Bridge(app, reader, model, cache, oneline=oneline, book_path=entry["epub"])
 
     try:
         from .hotkeys import DEFAULT, HotkeyListener

@@ -13,7 +13,7 @@ português.
 .venv/bin/pytest                                   # suíte completa
 .venv/bin/pytest tests/test_align.py -k A9         # requisitos específicos (pelo código)
 .venv/bin/pytest tests/test_spec_coverage.py       # todo requisito tem teste?
-.venv/bin/scribe play <livro|nº|pasta|epub áudio> [--oneline]
+.venv/bin/scribe play <livro|nº|pasta|epub/txt áudio> [--oneline] [--full]
 .venv/bin/scribe list
 .venv/bin/scribe prepare <livro>                   # transcreve e alinha tudo de antemão
 ```
@@ -85,6 +85,11 @@ EPUB ─► epub ─► blocos/palavras ─────────────�
   interpole atravessando um buraco de transcrição (P4).
 - **O texto exibido é o do livro (P1).** A única exceção é o "texto só do áudio" (A12),
   que exige todas as seis condições do spec.
+- **Modo completo** (C, `specs/completo.md`): `full.py` gera do EPUB (ou TXT, `txt.py`)
+  uma página HTML única em `books/<sha1>/full/`, com `data-b` em cada bloco e os trechos
+  das palavras em `data-w="id:início:fim"`. `scribe.js` pinta o marca-texto com a CSS
+  Custom Highlight API e fala com o QML por `console.log("scribe:…")`. A view fica em
+  `fullpage.qml`, separada, para o overlay não depender do QtWebEngine.
 - **Biblioteca** em `~/.local/share/scribe` (XDG): `library.json`, `books/<sha1>/`
   (transcrição e cache) e `backgrounds/`. As preferências da janela ficam salvas pelo
   `Reader`.
@@ -103,6 +108,13 @@ capturando quadros com `QQuickWindow.grabWindow`. O que já custou caro:
 - Use `timeout -s KILL` e evite padrões de `pkill` que casem com o próprio comando.
 - Nunca automatize o FileDialog com xdotool: isso prende o portal do GNOME.
 - Alguns crashes só aparecem com áudio real (PulseAudio), não com `ao=null`.
+- Modo completo: um `<span>` por palavra (30 mil) deixava a página segundos mais lenta;
+  por isso os trechos ficam no bloco. Destruir o WebEngineView com o livro carregado e a
+  acessibilidade ligada inunda a fila de eventos e trava o processo: antes de destruir, a
+  view vai para `about:blank` (fechar e voltar ao overlay passam por isso). O Chromium não
+  redesenha janelas fora da tela, e o `grabWindow` às vezes trava com ele: capture com
+  `import -window <winId>`. No GNOME o xdotool não muda o foco; teclas e cliques de teste
+  vão por `QTest.keyClick`/`mouseClick` na janela.
 - No QML, chamadas que reposicionam a lista a partir de delegates devem ser adiadas com
   `Qt.callLater`, porque as síncronas causaram segfault em pulos rápidos. No encerramento
   a ordem é: pausar, parar os timers, salvar, parar o worker, fechar o player e destruir

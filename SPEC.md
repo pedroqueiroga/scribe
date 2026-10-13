@@ -47,6 +47,7 @@ EPUB ──► epub ──► blocos e palavras ──────────�
 | G       | Imagem ao lado do texto  | [specs/layout.md](specs/layout.md) | [tests/test_layout.py](tests/test_layout.py) |
 | H       | Atalhos globais           | [specs/atalhos.md](specs/atalhos.md) | [tests/test_atalhos.py](tests/test_atalhos.py) |
 | O       | Modo de uma linha        | [specs/oneline.md](specs/oneline.md) | [tests/test_oneline.py](tests/test_oneline.py) |
+| C       | Modo completo             | [specs/completo.md](specs/completo.md) | [tests/test_full.py](tests/test_full.py) |
 | K       | Plataforma e dependências | [specs/plataforma.md](specs/plataforma.md) | [tests/test_plataforma.py](tests/test_plataforma.py) |
 | J       | Janela *(manual)*           | [specs/janela.md](specs/janela.md)       | —                                              |
 
