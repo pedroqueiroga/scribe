@@ -87,3 +87,23 @@ contrato (**C8**, **C9**, **C10**), e o resto do app não sabe de que formato a 
 - **C15 — Zoom.** No modo completo, os botões de letra (**J5**) mudam o zoom da página em
   degraus de 10%, entre 50% e 300%, lembrado entre sessões. O tamanho da fonte do overlay
   não muda.
+- **C16 — Linha da página.** No modo completo a pessoa escolhe o comprimento da linha do
+  texto e onde ela fica na largura da página (**J24**, em [janela.md](janela.md)). O
+  comprimento é medido em em, o tamanho da letra da página (acompanha o zoom, **C15**):
+  começa em 39 e fica entre 15 e 120, arredondado a décimos. A posição é a fração do espaço
+  em branco que fica à esquerda da linha: 0 encosta a linha na margem esquerda, 1 na
+  direita e 0,5 centraliza (o padrão), arredondada a milésimos (a centésimos, a ponta que
+  fica parada pularia alguns pixels numa tela larga). De cada lado sempre sobra
+  uma margem mínima de 2,4 em; numa página estreita demais para o comprimento escolhido, a
+  linha ocupa o que cabe. Mover o começo da linha deixa o fim no lugar, mover o fim deixa
+  o começo, e mover a linha inteira mantém o comprimento; nenhum deles passa das margens
+  mínimas nem dos limites do comprimento. Numa página sem branco sobrando, mover a linha
+  inteira não muda nada do que está salvo. Os dois ficam salvos com as preferências
+  (**R8**). O overlay não muda: nele o texto ocupa a largura da janela (**J13**).
+- **C17 — Maximizada.** No modo completo a janela pode ser maximizada e restaurada (**J25**,
+  em [janela.md](janela.md)). Estar maximizada é uma preferência (**R8**): o modo completo
+  volta maximizado se estava assim ao sair dele ou ao fechar o app. Enquanto maximizada, a
+  geometria salva do modo completo (**C12**) continua a de antes de maximizar, para que
+  restaurar devolva o tamanho e o lugar de antes. O overlay nunca abre maximizado: voltar a
+  ele de uma janela maximizada devolve a geometria do overlay.
+

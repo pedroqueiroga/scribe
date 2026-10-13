@@ -25,6 +25,9 @@ Window {
     // é salvo ao soltar
     property real dragFocus: -1
     readonly property real focusHeight: dragFocus >= 0 ? dragFocus : reader.focusHeight
+    // C16: [comprimento, posição] da linha da página; a do arrasto da régua enquanto ele dura (J24)
+    property var dragLine: null
+    readonly property var line: dragLine ? dragLine : [reader.lineMeasure, reader.lineOffset]
     onFocusHeightChanged: list.requestFollow(false)
     function resync() {                    // J4: volta o texto para a palavra narrada
         browsing = false
@@ -73,13 +76,50 @@ Window {
     function screenRect() {
         return [screen.virtualX, screen.virtualY, screen.width, screen.height]
     }
+    // C17/J25: maximizada só no modo completo; o estado é o da janela (o sistema também
+    // maximiza), e a preferência o acompanha
+    readonly property bool maxed: visibility === Window.Maximized
+    property var pendingGeo: null                 // geometria do overlay, depois de restaurar
+    property bool wasMaxed: false
+    property bool started: false
+    property var maxGeo: []
+    Timer {
+        id: restoreCheck; interval: 200
+        onTriggered: {
+            const g = win.maxGeo
+            if (win.full && !win.maxed && g.length === 4 && win.x === g[0] && win.y === g[1]
+                    && win.width === g[2] && win.height === g[3]) {
+                const r = win.screenRect()
+                win.applyGeometry(reader.fullGeometry(r[0], r[1], r[2], r[3]))
+            }
+        }
+    }
+    onVisibilityChanged: {
+        if (visibility !== Window.Maximized && visibility !== Window.Windowed) return
+        // a janela aparece "normal" antes de abrir: isso não é a pessoa restaurando (C17)
+        if (!started) return
+        const on = visibility === Window.Maximized   // aqui o maxed ainda é o de antes
+        if (full) {
+            reader.setMaximized(on)
+            // restaurar devolve a geometria salva (a de antes de maximizar): o sistema nem
+            // sempre a conhece, quando a janela maximiza logo ao aparecer ou ao trocar de modo.
+            // Só se ele não restaurou: arrastar a janela maximizada a restaura sob o mouse.
+            if (on) maxGeo = [x, y, width, height]
+            else if (wasMaxed) restoreCheck.restart()
+        } else if (pendingGeo && !on) { applyGeometry(pendingGeo); pendingGeo = null }
+        wasMaxed = on
+    }
+    function toggleMaximized() { if (maxed) showNormal(); else showMaximized() }
     function toggleFull() {                       // J19, C11, C12
         saveGeo.stop()
-        reader.saveGeometry(x, y, width, height)  // a do modo que sai
+        reader.saveGeometry(x, y, width, height)  // a do modo que sai (C17: não a de maximizada)
         if (!full) syncImageOff()
         else if (page.item) { page.holding = true; page.item.release() }
         const r = screenRect()
-        applyGeometry(reader.toggleFull(r[0], r[1], r[2], r[3]))
+        const g = reader.toggleFull(r[0], r[1], r[2], r[3])
+        if (!full && maxed) { pendingGeo = g; showNormal() }    // C17: o overlay nunca maximizado
+        else applyGeometry(g)
+        if (full && reader.fullMaximized) showMaximized()
         browsing = false
         Qt.callLater(updateVertical)
         Qt.callLater(syncImage)
@@ -92,6 +132,8 @@ Window {
     Component.onCompleted: {
         const r = screenRect()
         applyGeometry(full ? reader.fullGeometry(r[0], r[1], r[2], r[3]) : reader.geometry)
+        started = true
+        if (full && reader.fullMaximized) showMaximized()                // C17
         lastLine = reader.linePitch
         updateVertical()
         if (reader.passClicks) {                 // abriu já atravessando: aplica e avisa
@@ -1015,6 +1057,33 @@ Window {
                               PathLine { x: 7; y: 1.5 }
                           }
                       } }
+                // J25: maximizar e restaurar, só no modo completo
+                Btn { id: maxBtn; visible: win.full
+                      tip: win.maxed ? "Restaurar" : "Maximizar"
+                      onClicked: win.toggleMaximized()
+                      Shape {
+                          anchors.fill: parent
+                          preferredRendererType: Shape.CurveRenderer
+                          ShapePath {   // maximizada: o quadrado de trás, só a quina que aparece
+                              strokeColor: win.maxed ? maxBtn.ink : "transparent"
+                              strokeWidth: 1.4; fillColor: "transparent"
+                              joinStyle: ShapePath.RoundJoin
+                              startX: 6.5; startY: 4.5
+                              PathLine { x: 6.5; y: 3 }
+                              PathLine { x: 15; y: 3 }
+                              PathLine { x: 15; y: 11.5 }
+                              PathLine { x: 13.5; y: 11.5 }
+                          }
+                          ShapePath {   // o quadrado da frente (ou o único)
+                              strokeColor: maxBtn.ink; strokeWidth: 1.4; fillColor: "transparent"
+                              joinStyle: ShapePath.RoundJoin
+                              startX: win.maxed ? 3 : 3.5; startY: win.maxed ? 6.5 : 3.5
+                              PathLine { x: win.maxed ? 11.5 : 14.5; y: win.maxed ? 6.5 : 3.5 }
+                              PathLine { x: win.maxed ? 11.5 : 14.5; y: win.maxed ? 15 : 14.5 }
+                              PathLine { x: win.maxed ? 3 : 3.5; y: win.maxed ? 15 : 14.5 }
+                              PathLine { x: win.maxed ? 3 : 3.5; y: win.maxed ? 6.5 : 3.5 }
+                          }
+                      } }
                 Btn { id: quitBtn; tip: "Fechar"; onClicked: reader.quit()
                       Shape {
                           anchors.fill: parent
@@ -1193,7 +1262,115 @@ Window {
                     win.dragFocus = -1
                 }
                 onCanceled: win.dragFocus = -1
-                onDoubleClicked: reader.setFocusHeight(0.4)
+                onDoubleClicked: { win.dragFocus = -1; reader.setFocusHeight(0.4) }   // o soltar não desfaz
+            }
+        }
+
+        // ------------------------------------------------------------ régua da linha (J24)
+        // no alto da página: um marcador em cada ponta da linha do texto, ligados por um traço
+        Item {
+            id: ruler
+            objectName: "lineRuler"
+            z: 4
+            readonly property var pg: page.item
+            visible: win.full && !reader.passClicks && !!pg && pg.ready && pg.em > 0
+            enabled: visible
+            readonly property bool active: startGrip.pressed || endGrip.pressed || barGrip.pressed
+            readonly property bool hovered: startGrip.hovered || endGrip.hovered || barGrip.hovered
+            opacity: active || hovered ? 1 : win.barShown ? 0.6 : 0
+            Behavior on opacity { NumberAnimation { duration: 180 } }
+            // pontas da linha em px da janela (C16)
+            readonly property var edges: visible ? reader.lineEdges(pg.boxW, pg.em, win.line[0], win.line[1]) : [0, 0]
+            readonly property real x0: visible ? page.x + (pg.boxX + edges[0]) * reader.zoom : 0
+            readonly property real x1: visible ? page.x + (pg.boxX + edges[1]) * reader.zoom : 0
+            x: 0; y: page.y + 10
+            width: parent.width; height: 12
+
+            Rectangle {                            // traço entre as pontas
+                x: ruler.x0; width: ruler.x1 - ruler.x0
+                anchors.verticalCenter: parent.verticalCenter
+                height: barGrip.hovered || barGrip.pressed ? 2 : 1
+                color: win.ribbon; opacity: ruler.active || ruler.hovered ? 0.7 : 0.3
+            }
+            Repeater {                             // linhas-guia descendo das pontas
+                model: 2
+                Rectangle {
+                    visible: ruler.active
+                    x: (index === 0 ? ruler.x0 : ruler.x1) - 0.5
+                    y: ruler.height
+                    width: 1; height: page.height - ruler.y - ruler.height
+                    color: win.ribbon; opacity: 0.35
+                }
+            }
+            component Grip: Item {
+                id: grip
+                property string edge
+                property string tip
+                readonly property bool pressed: gripMa.pressed
+                readonly property bool hovered: gripMa.containsMouse
+                property real downX: 0
+                property var start: null
+                property var startEdges: null
+                MouseArea {
+                    id: gripMa
+                    anchors.fill: parent
+                    anchors.margins: -4
+                    hoverEnabled: true
+                    preventStealing: true
+                    cursorShape: Qt.SizeHorCursor
+                    onContainsMouseChanged: win.hoverTip(grip, containsMouse && !pressed)
+                    onPressed: (m) => {
+                        win.hoverTip(grip, false)
+                        grip.downX = mapToItem(null, m.x, 0).x
+                        grip.start = win.line
+                        grip.startEdges = ruler.edges
+                        win.dragLine = win.line
+                    }
+                    onPositionChanged: (m) => {
+                        if (!pressed || !grip.start) return
+                        const dx = (mapToItem(null, m.x, 0).x - grip.downX) / reader.zoom
+                        const from = grip.edge === "right" ? grip.startEdges[1] : grip.startEdges[0]
+                        win.dragLine = reader.moveLine(ruler.pg.boxW, ruler.pg.em, grip.start[0],
+                                                       grip.start[1], grip.edge, from + dx)
+                    }
+                    onReleased: {
+                        if (win.dragLine) reader.setLine(win.dragLine[0], win.dragLine[1])
+                        win.dragLine = null
+                    }
+                    onCanceled: win.dragLine = null
+                    onDoubleClicked: { win.dragLine = null; reader.setLine(39, 0.5) }   // o soltar não desfaz
+                }
+            }
+            Grip {                                 // o traço: move a linha inteira
+                id: barGrip
+                edge: "both"; tip: "mover a linha"
+                x: ruler.x0 + 10; width: Math.max(0, ruler.x1 - ruler.x0 - 20); height: parent.height
+            }
+            component Tip: Shape {                 // ponta de seta para baixo
+                anchors.centerIn: parent
+                width: 10; height: 7
+                preferredRendererType: Shape.CurveRenderer
+                ShapePath {
+                    strokeColor: "transparent"; fillColor: win.ribbon
+                    startX: 0; startY: 0
+                    PathLine { x: 10; y: 0 }
+                    PathLine { x: 5; y: 7 }
+                    PathLine { x: 0; y: 0 }
+                }
+            }
+            Grip {
+                id: startGrip
+                edge: "left"; tip: "começo da linha"
+                width: 12; height: parent.height
+                x: ruler.x0 - width / 2
+                Tip {}
+            }
+            Grip {
+                id: endGrip
+                edge: "right"; tip: "fim da linha"
+                width: 12; height: parent.height
+                x: ruler.x1 - width / 2
+                Tip {}
             }
         }
 
@@ -1258,7 +1435,7 @@ Window {
         component Edge: MouseArea {
             property int edges
             z: 3            // acima da faixa da barra: as bordas de baixo continuam redimensionando
-            enabled: !reader.locked
+            enabled: !reader.locked && !win.maxed     // J25: maximizada não redimensiona
             hoverEnabled: true
             onPressed: win.startSystemResize(edges)
         }

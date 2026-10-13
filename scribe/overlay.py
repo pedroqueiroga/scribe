@@ -13,7 +13,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 from .align import NARRATED, SKIPPED
 from .layout import GAP, ImageLayout, inline_size, is_vertical
 from . import oneline as one
-from .reader import Reader, full_default_geometry
+from .reader import Reader, full_default_geometry, line_edges, move_line
 
 HERE = Path(__file__).parent
 TICK_MS = 33
@@ -371,6 +371,37 @@ class Bridge(QObject):
     @Property(float, notify=prefsChanged)
     def zoom(self):
         return self.r.prefs["full_zoom"]
+
+    @Property(float, notify=prefsChanged)
+    def lineMeasure(self):                            # C16
+        return self.r.prefs["full_measure"]
+
+    @Property(float, notify=prefsChanged)
+    def lineOffset(self):                             # C16
+        return self.r.prefs["full_offset"]
+
+    @Slot(float, float)
+    def setLine(self, measure, offset):               # J24
+        self.r.set_line(measure, offset)
+        self.prefsChanged.emit()
+
+    @Slot(float, float, float, float, result="QVariantList")
+    def lineEdges(self, width, em, measure, offset):  # C16
+        return list(line_edges(width, em, measure, offset))
+
+    @Slot(float, float, float, float, str, float, result="QVariantList")
+    def moveLine(self, width, em, measure, offset, edge, x):   # J24
+        return list(move_line(width, em, measure, offset, edge, x))
+
+    @Property(bool, notify=prefsChanged)
+    def fullMaximized(self):                          # C17
+        return self.r.maximized()
+
+    @Slot(bool)
+    def setMaximized(self, on):                       # J25
+        if on != self.r.maximized():
+            self.r.set_maximized(on)
+            self.prefsChanged.emit()
 
     @Property(str, notify=pageChanged)
     def pageUrl(self):

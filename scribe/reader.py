@@ -24,11 +24,15 @@ DEFAULT_PREFS = {"font_size": 22, "bg_opacity": 0.55, "locked": False,
                  "text_color": "#f3eee4", "text_opacity": 1.0,
                  "bg_color": "#15131f", "bg_image": "",
                  "focus_height": 0.4,                                     # R15
-                 "full": False, "full_geometry": [], "full_zoom": 1.0}   # C11, C12, C15
+                 "full": False, "full_geometry": [], "full_zoom": 1.0,   # C11, C12, C15
+                 "full_measure": 39, "full_offset": 0.5,                  # C16
+                 "full_maximized": False}                                 # C17
 PREF_LIMITS = {"font_size": (12, 64), "bg_opacity": (0.0, 1.0),
                "text_opacity": (0.2, 1.0), "full_zoom": (0.5, 3.0),
-               "focus_height": (0.2, 0.75)}                       # R8, C15, R15
+               "focus_height": (0.2, 0.75),                       # R8, C15, R15
+               "full_measure": (15, 120), "full_offset": (0.0, 1.0)}   # C16
 ZOOM_STEP = 0.1                                                    # C15
+LINE_GUTTER = 2.4                                                  # C16: margem mínima, em em
 FULL_SIZE = (900, 0.85)    # C12: largura e fração da altura da tela no modo completo
 COLOR_RE = re.compile(r"#[0-9a-fA-F]{6}")
 
@@ -344,10 +348,23 @@ class Reader:
         return "full_geometry" if self.prefs["full"] else "geometry"
 
     def save_geometry(self, geometry: list):                               # C12
+        if self.maximized():
+            return                        # C17: fica a de antes de maximizar
         self.set_pref(self._geometry_key(), list(geometry))
+
+    def maximized(self) -> bool:                                           # C17
+        return bool(self.prefs["full"] and self.prefs["full_maximized"])
+
+    def set_maximized(self, on: bool):                                     # C17
+        if self.prefs["full"]:
+            self.set_pref("full_maximized", bool(on))
 
     def zoom(self, step: int):                                             # C15
         self.set_pref("full_zoom", round(self.prefs["full_zoom"] + step * ZOOM_STEP, 2))
+
+    def set_line(self, measure: float, offset: float):                     # C16
+        self.set_pref("full_measure", round(measure, 1))
+        self.set_pref("full_offset", round(offset, 3))
 
     def highlight(self) -> dict:
         """C13: o que a página precisa para o marca-texto. Num trecho só do áudio a palavra
@@ -396,3 +413,32 @@ def full_default_geometry(sx: int, sy: int, sw: int, sh: int) -> list:   # C12
     w = min(FULL_SIZE[0], sw)
     h = round(sh * FULL_SIZE[1])
     return [sx + (sw - w) // 2, sy + (sh - h) // 2, w, h]
+
+
+def line_edges(width: float, em: float, measure: float, offset: float) -> tuple[float, float]:
+    """C16: começo e fim da linha do texto numa página de `width` px com letra de `em` px."""
+    g = LINE_GUTTER * em
+    text = max(0.0, min(measure * em, width - 2 * g))
+    left = g + (width - 2 * g - text) * offset
+    return left, left + text
+
+
+def move_line(width: float, em: float, measure: float, offset: float,
+              edge: str, x: float) -> tuple[float, float]:
+    """C16: (comprimento, posição) com uma ponta da linha (`left`, `right`) ou a linha
+    inteira (`both`, `x` é o começo novo) levada para `x`; a outra ponta fica no lugar."""
+    lo, hi = (v * em for v in PREF_LIMITS["full_measure"])
+    g = LINE_GUTTER * em
+    left, right = line_edges(width, em, measure, offset)
+    if edge == "left":
+        left = max(g, right - hi, min(x, right - lo))
+    elif edge == "right":
+        right = min(width - g, left + hi, max(x, left + lo))
+    else:                                 # a linha inteira: o comprimento não muda
+        left, right = x, x + right - left
+    free = width - 2 * g - (right - left)
+    if free > 0:                          # sem branco, a posição não importa e fica
+        offset = (left - g) / free
+    if edge != "both":
+        measure = (right - left) / em
+    return round(measure, 1), round(max(0.0, min(1.0, offset)), 3)

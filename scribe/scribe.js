@@ -90,6 +90,25 @@
         follow(false)
     }
 
+    // C16: comprimento (em em) e posição da linha; a régua (J24) precisa saber onde fica a
+    // largura da página e o tamanho da letra, em px da página
+    const main = document.querySelector(".scribe-page")
+    function setLine(measure, offset) {
+        document.documentElement.style.setProperty("--scribe-measure", measure)
+        document.documentElement.style.setProperty("--scribe-offset", offset)
+        follow(false)
+    }
+    let metrics = ""
+    function report() {
+        if (!main) return
+        const box = main.parentElement.getBoundingClientRect()
+        const cs = getComputedStyle(main.parentElement)
+        const x = box.left + parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth)
+        const m = [x, main.parentElement.clientWidth - parseFloat(cs.paddingLeft)
+                   - parseFloat(cs.paddingRight), parseFloat(getComputedStyle(main).fontSize)].join(":")
+        if (m !== metrics) { metrics = m; send("metrics:" + m) }
+    }
+
     // J20: a linha da palavra atual na altura do foco; a imagem em foco, centralizada (G10)
     function target() {
         const img = focus >= 0 ? B.get(focus) : null
@@ -160,11 +179,12 @@
         const w = words(el).find((w) => w.s <= at && at < w.e) || words(el).find((w) => w.e === at)
         if (w) send("seek:" + w.id)
     })
-    addEventListener("resize", () => follow(false))
+    addEventListener("resize", () => { report(); follow(false) })
     // imagens e fontes que terminam de carregar mudam a altura do que está acima da
     // palavra: o enquadramento é refeito na hora, para ela não sair do lugar (J21)
-    new ResizeObserver(() => { if (!anim) follow(false) }).observe(document.body)
+    new ResizeObserver(() => { report(); if (!anim) follow(false) }).observe(document.body)
 
-    window.scribe = { set, setFocus, setAnchor, resync }
+    window.scribe = { set, setFocus, setAnchor, setLine, resync }
     send("ready")
+    report()
 })()

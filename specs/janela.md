@@ -125,3 +125,18 @@ Verificação manual (rodando o app).
   porcentagem. Arrastar a alça não arrasta a janela nem solta o texto da narração. No
   começo e no fim do livro há espaço acima e abaixo do texto para que a primeira e a última
   linha também possam ficar na altura do foco.
+- **J24 —** No modo completo, a linha da página (**C16**) se ajusta por uma régua no alto da
+  página, que aparece quando o mouse passa pela janela, como a barra (**J5**): dois
+  pequenos marcadores dourados no começo e no fim da linha do texto, ligados por um traço
+  fino. Arrastar um marcador move aquela ponta da linha; arrastar o traço move a linha
+  inteira para um lado ou para o outro. O texto acompanha na hora, com duas linhas-guia
+  finas e discretas descendo das pontas enquanto se arrasta. Clicar duas vezes na régua
+  volta ao padrão (39 em, centralizada). Os balões (**J5**) dizem "começo da linha", "fim
+  da linha" e "mover a linha". Arrastar a régua não arrasta a janela nem solta a página da
+  narração (**J20**), e a palavra atual continua na altura do foco (**R15**).
+- **J25 —** No modo completo, um botão na barra (**J5**), antes do de fechar, maximiza e
+  restaura a janela (**C17**): um quadrado quando ela está no tamanho normal ("Maximizar"),
+  dois quadrados sobrepostos quando está maximizada ("Restaurar"). Maximizar pelo sistema
+  (atalho de teclado, arrastar para o alto da tela) vale o mesmo, e o botão acompanha.
+  Maximizada, a janela não tem bordas de redimensionar.
+

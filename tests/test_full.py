@@ -1,4 +1,4 @@
-"""Modo completo — specs/completo.md (C1–C15)."""
+"""Modo completo — specs/completo.md (C1–C17)."""
 from __future__ import annotations
 
 import json
@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from scribe import epub as ep
 from scribe import full, txt
 from scribe.library import Library
-from scribe.reader import Reader
+from scribe.reader import Reader, line_edges, move_line
 from scribe.session import Session, load_book
 from tests.conftest import PNG
 from tests.helpers import make_book, narrate
@@ -324,7 +324,7 @@ def test_C10_pagina_reaproveitada_e_refeita_em_versao_nova(tmp_path, monkeypatch
     assert len(calls) == 2
 
 
-# ---------------------------------------------------------------- leitor (C11–C15)
+# ---------------------------------------------------------------- leitor (C11–C17)
 
 class FakePlayer:
     def __init__(self):
@@ -436,3 +436,124 @@ def test_C15_zoom_em_degraus_com_limites_e_salvo(tmp_path, lib):
     assert r.prefs["full_zoom"] == pytest.approx(0.5)
     assert r.prefs["font_size"] == font
     assert Library().data["ui"]["full_zoom"] == pytest.approx(0.5)
+
+
+# ---------------------------------------------------------------- linha da página (C16)
+
+def test_C16_padrao_salvo_e_restaurado(tmp_path, lib):
+    r, bid = make_reader(tmp_path, lib, "um dois tres")
+    assert (r.prefs["full_measure"], r.prefs["full_offset"]) == (39, 0.5)
+    r.set_line(52.345, 0.2567)
+    assert (r.prefs["full_measure"], r.prefs["full_offset"]) == (52.3, 0.257)
+    ui = Library().data["ui"]
+    assert (ui["full_measure"], ui["full_offset"]) == (52.3, 0.257)
+
+
+@pytest.mark.parametrize("given,expected", [((5, -1), (15, 0)), ((500, 3), (120, 1))])
+def test_C16_limites(tmp_path, lib, given, expected):
+    r, _ = make_reader(tmp_path, lib, "um dois tres")
+    r.set_line(*given)
+    assert (r.prefs["full_measure"], r.prefs["full_offset"]) == expected
+
+
+@pytest.mark.parametrize("offset,left", [(0, 24), (1, 1000 - 24 - 400), (0.5, 300), (0.25, 162)])
+def test_C16_posicao_e_a_fracao_do_branco_a_esquerda(offset, left):
+    # página de 1000 px, em de 10 px: margem mínima de 24 px, linha de 400 px
+    assert line_edges(1000, 10, 40, offset) == pytest.approx((left, left + 400))
+
+
+def test_C16_pagina_estreita_a_linha_ocupa_o_que_cabe():
+    for offset in (0, 0.5, 1):
+        assert line_edges(300, 10, 40, offset) == pytest.approx((24, 276))
+
+
+def test_C16_mover_o_comeco_deixa_o_fim():
+    left, right = line_edges(1000, 10, 40, 0.5)
+    m, o = move_line(1000, 10, 40, 0.5, "left", 200)
+    assert line_edges(1000, 10, m, o) == pytest.approx((200, right), abs=1)
+    assert m == 50
+
+
+def test_C16_mover_o_fim_deixa_o_comeco():
+    m, o = move_line(1000, 10, 40, 0.5, "right", 900)
+    assert line_edges(1000, 10, m, o) == pytest.approx((300, 900), abs=1)
+    assert m == 60
+
+
+def test_C16_mover_a_linha_mantem_o_comprimento():
+    m, o = move_line(1000, 10, 40, 0.5, "both", 100)
+    assert m == 40
+    assert line_edges(1000, 10, m, o) == pytest.approx((100, 500), abs=1)
+    assert move_line(1000, 10, 40, 0.5, "both", -50) == (40, 0)        # margem mínima
+    assert move_line(1000, 10, 40, 0.5, "both", 900) == (40, 1)
+
+
+def test_C16_as_pontas_respeitam_margens_e_limites():
+    assert line_edges(1000, 10, *move_line(1000, 10, 40, 0.5, "left", 0)) == pytest.approx((24, 700), abs=1)
+    assert line_edges(1000, 10, *move_line(1000, 10, 40, 0.5, "right", 2000)) == pytest.approx((300, 976), abs=1)
+    assert move_line(3000, 10, 40, 0.5, "right", 3000)[0] == 120
+    assert move_line(1000, 10, 40, 0.5, "left", 690)[0] == 15         # comprimento mínimo
+    assert move_line(1000, 10, 40, 0.5, "right", 310)[0] == 15
+    assert move_line(3000, 10, 40, 0.5, "left", 0)[0] == 120          # comprimento máximo
+    left, right = line_edges(3000, 10, *move_line(3000, 10, 40, 0.5, "left", 0))
+    assert right == pytest.approx(line_edges(3000, 10, 40, 0.5)[1], abs=1)   # o fim fica no lugar
+
+
+def test_C16_pagina_estreita_mover_a_linha_nao_muda_nada():
+    # a linha de 40 em não cabe em 300 px: ocupa o que cabe, e o que está salvo fica
+    assert move_line(300, 10, 40, 0.7, "both", 0) == (40, 0.7)
+    assert move_line(300, 10, 40, 0.7, "both", 200) == (40, 0.7)
+
+
+def test_C16_arredonda_como_a_preferencia():
+    m, o = move_line(1000, 10, 40, 0.5, "left", 233.33)
+    assert m == round(m, 1) and o == round(o, 3)
+
+
+# ---------------------------------------------------------------- maximizada (C17)
+
+def test_C17_maximizada_e_salva(tmp_path, lib):
+    r, _ = make_reader(tmp_path, lib, "um dois tres")
+    r.toggle_full()
+    assert not r.maximized()
+    r.set_maximized(True)
+    assert r.maximized()
+    assert Library().data["ui"]["full_maximized"] is True
+
+
+def test_C17_maximizada_nao_troca_a_geometria_salva(tmp_path, lib):
+    r, _ = make_reader(tmp_path, lib, "um dois tres")
+    r.toggle_full()
+    r.save_geometry([100, 50, 900, 700])
+    r.set_maximized(True)
+    r.save_geometry([0, 0, 1920, 1080])               # o tamanho de maximizada
+    assert r.prefs["full_geometry"] == [100, 50, 900, 700]
+    r.set_maximized(False)
+    r.save_geometry([120, 60, 900, 700])
+    assert r.prefs["full_geometry"] == [120, 60, 900, 700]
+
+
+def test_C17_o_overlay_nunca_e_maximizado(tmp_path, lib):
+    r, _ = make_reader(tmp_path, lib, "um dois tres")
+    r.save_geometry([10, 20, 700, 200])
+    r.toggle_full()
+    r.set_maximized(True)
+    assert r.toggle_full() == [10, 20, 700, 200]      # volta ao overlay
+    assert not r.maximized()
+    r.save_geometry([30, 40, 700, 200])               # o overlay salva a sua normalmente
+    assert r.prefs["geometry"] == [30, 40, 700, 200]
+
+
+def test_C17_o_completo_volta_maximizado(tmp_path, lib):
+    r, _ = make_reader(tmp_path, lib, "um dois tres")
+    r.toggle_full()
+    r.set_maximized(True)
+    r.toggle_full()
+    assert r.toggle_full() is not None and r.maximized()
+
+
+def test_C17_maximizar_so_vale_no_completo(tmp_path, lib):
+    r, _ = make_reader(tmp_path, lib, "um dois tres")
+    r.set_maximized(True)                             # no overlay: ignorado
+    assert not r.maximized() and not r.prefs["full_maximized"]
+

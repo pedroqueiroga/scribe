@@ -31,6 +31,13 @@ WebEngineView {
     // R15: altura do foco (a do arrasto da alça, J23, enquanto ele dura)
     property real focusHeight: win.focusHeight
     onFocusHeightChanged: if (ready) runJavaScript("scribe.setAnchor(" + focusHeight + ")")
+    // C16: linha da página (a do arrasto da régua, J24, enquanto ele dura)
+    readonly property var line: win.line
+    onLineChanged: if (ready) runJavaScript("scribe.setLine(" + line[0] + "," + line[1] + ")")
+    // J24: onde fica a largura da página e o tamanho da letra, em px da página
+    property real boxX: 0
+    property real boxW: 0
+    property real em: 0
     function focusOn(row) { if (ready) runJavaScript("scribe.setFocus(" + row + ")") }
 
     // J11: antes de destruir a view, esvazia a página (destruir o livro inteiro trava)
@@ -51,8 +58,12 @@ WebEngineView {
         if (m === "ready") {                  // J21: abre já na palavra atual
             ready = true
             runJavaScript("scribe.setAnchor(" + focusHeight + ")")
+            runJavaScript("scribe.setLine(" + line[0] + "," + line[1] + ")")
             push(false)
             focusOn(reader.focusRow)
+        } else if (m.startsWith("metrics:")) {
+            const v = m.slice(8).split(":").map(Number)
+            boxX = v[0]; boxW = v[1]; em = v[2]
         } else if (m === "browse") {
             view.browse()
         } else if (m.startsWith("key:")) {
