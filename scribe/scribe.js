@@ -81,13 +81,22 @@
 
     function setFocus(row) { focus = row; follow(true) }
 
-    // J20: a linha da palavra atual a 40% da altura; a imagem em foco, centralizada (G10)
+    // R15: altura do foco, em fração da altura da página; o espaço antes e depois do livro
+    // acompanha, para a primeira e a última linha também chegarem a ela (J23)
+    let anchor = 0.4
+    function setAnchor(f) {
+        anchor = f
+        document.documentElement.style.setProperty("--scribe-focus", f)
+        follow(false)
+    }
+
+    // J20: a linha da palavra atual na altura do foco; a imagem em foco, centralizada (G10)
     function target() {
         const img = focus >= 0 ? B.get(focus) : null
         const box = img || nowRange || B.get(cur.row)
         if (!box) return null
         const r = box.getBoundingClientRect()
-        const y = img ? r.top + r.height / 2 - innerHeight / 2 : r.top - innerHeight * 0.4
+        const y = img ? r.top + r.height / 2 - innerHeight / 2 : r.top - innerHeight * anchor
         return { y: Math.max(0, scrollY + y), slow: !!img }
     }
 
@@ -156,6 +165,6 @@
     // palavra: o enquadramento é refeito na hora, para ela não sair do lugar (J21)
     new ResizeObserver(() => { if (!anim) follow(false) }).observe(document.body)
 
-    window.scribe = { set, setFocus, resync }
+    window.scribe = { set, setFocus, setAnchor, resync }
     send("ready")
 })()

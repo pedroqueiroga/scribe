@@ -252,6 +252,15 @@ class Bridge(QObject):
     def bgOpacity(self):
         return self.r.prefs["bg_opacity"]
 
+    @Property(float, notify=prefsChanged)
+    def focusHeight(self):                            # R15
+        return self.r.prefs["focus_height"]
+
+    @Slot(float)
+    def setFocusHeight(self, f):                      # J23
+        self.r.set_focus_height(f)
+        self.prefsChanged.emit()
+
     @Property(bool, notify=prefsChanged)
     def locked(self):
         return self.r.prefs["locked"]

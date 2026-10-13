@@ -23,9 +23,11 @@ DEFAULT_PREFS = {"font_size": 22, "bg_opacity": 0.55, "locked": False,
                  "click_through": False, "lock_by_pass": False, "geometry": [],
                  "text_color": "#f3eee4", "text_opacity": 1.0,
                  "bg_color": "#15131f", "bg_image": "",
+                 "focus_height": 0.4,                                     # R15
                  "full": False, "full_geometry": [], "full_zoom": 1.0}   # C11, C12, C15
 PREF_LIMITS = {"font_size": (12, 64), "bg_opacity": (0.0, 1.0),
-               "text_opacity": (0.2, 1.0), "full_zoom": (0.5, 3.0)}  # R8, C15
+               "text_opacity": (0.2, 1.0), "full_zoom": (0.5, 3.0),
+               "focus_height": (0.2, 0.75)}                       # R8, C15, R15
 ZOOM_STEP = 0.1                                                    # C15
 FULL_SIZE = (900, 0.85)    # C12: largura e fração da altura da tela no modo completo
 COLOR_RE = re.compile(r"#[0-9a-fA-F]{6}")
@@ -309,6 +311,9 @@ class Reader:
         self.prefs[key] = value
         self.lib.data["ui"][key] = value
         self.lib.save()
+
+    def set_focus_height(self, f: float):                                  # R15
+        self.set_pref("focus_height", round(f, 2))
 
     def toggle_lock(self):                                                 # R10
         if self.window_mode()["click_through"]:

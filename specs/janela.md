@@ -17,8 +17,8 @@ Verificação manual (rodando o app).
   atual: na altura da barra (**J5**), que está escondida, ou no meio da faixa no modo de
   uma linha (**J14**). O atalho
   global Ctrl+Alt+F faz o mesmo que o cadeado. Nunca existe um estado sem saída pelo mouse.
-- **J4 —** A linha da palavra atual fica numa altura fixa da janela (cerca de 40% da
-  altura), mesmo em parágrafos maiores que a janela, e a rolagem acompanha a narração com
+- **J4 —** A linha da palavra atual fica numa altura fixa da janela (a altura do foco,
+  **R15**, em [reader.md](reader.md); 40% de início), mesmo em parágrafos maiores que a janela, e a rolagem acompanha a narração com
   animação suave. Rolar com o mouse solta o texto da narração para navegar livremente, e ele
   continua solto até a pessoa pedir. Enquanto está solto, a barra (**J5**) mostra um botão
   só com ícone, uma mira dourada de "recentralizar", sem texto. Clicar nele, ou
@@ -105,7 +105,7 @@ Verificação manual (rodando o app).
   aparência do overlay (cor e opacidade do texto, fundo) somem da barra; os de letra viram
   zoom (**C15**). A janela continua sem borda, arrastável pela faixa da barra e
   redimensionável pelas bordas, e fixar e atravessar cliques (**J3**) valem como no overlay.
-- **J20 —** Na página, a linha da palavra atual fica a cerca de 40% da altura, e a rolagem
+- **J20 —** Na página, a linha da palavra atual fica na altura do foco (**R15**, **J23**), e a rolagem
   acompanha a narração com animação suave, como no **J4**: rolar com o mouse solta a página,
   a mira de recentralizar aparece na barra, e ela ou qualquer pulo no áudio voltam para a
   palavra narrada. Durante o foco numa imagem (**G10**), a página centraliza a imagem.
@@ -116,3 +116,12 @@ Verificação manual (rodando o app).
   Com o foco na página, as teclas da janela continuam valendo como no overlay (espaço toca
   e pausa, ← → pulam 10 s, ↑ ↓ trocam de parágrafo, Esc esconde); PageUp, PageDown, Home e
   End rolam a página e a soltam da narração (**J20**).
+- **J23 —** A altura do foco (**R15**) se ajusta por uma alça: um pequeno marcador dourado
+  encostado na parede esquerda, na altura da linha atual, que aparece quando o mouse passa
+  pela janela, como a barra (**J5**), no overlay, no modo vertical e no modo completo (no de uma linha, não). Arrastar
+  a alça para cima ou para baixo move a altura do foco, e o texto (ou a página) acompanha na
+  hora, mostrando uma linha-guia fina e discreta enquanto a alça é arrastada. Clicar duas
+  vezes na alça volta para 40%. O balão (**J5**) da alça diz "altura do foco" e o valor em
+  porcentagem. Arrastar a alça não arrasta a janela nem solta o texto da narração. No
+  começo e no fim do livro há espaço acima e abaixo do texto para que a primeira e a última
+  linha também possam ficar na altura do foco.

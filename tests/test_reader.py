@@ -638,3 +638,37 @@ def test_R14_imagem_em_secao_propria_pertence_ao_capitulo_anterior(tmp_path, lib
     play_to(reader, player, session.image_time(nxt_block) + 0.5)
     assert reader.image == "fig.png"
 
+
+
+# ---------------------------------------------------------------- R15
+
+def test_R15_altura_do_foco_comeca_em_40_e_fica_salva(tmp_path, lib):
+    reader, player, session, *_ = build(tmp_path, lib, P1)
+    assert reader.prefs["focus_height"] == 0.4
+    reader.set_focus_height(0.62)
+    again = Reader(session, FakePlayer(120.0), Library(), reader.bid)
+    assert again.prefs["focus_height"] == 0.62
+
+
+@pytest.mark.parametrize("asked, got", [(0.0, 0.2), (0.19, 0.2), (0.5, 0.5),
+                                        (0.75, 0.75), (0.9, 0.75), (-3, 0.2)])
+def test_R15_limites_da_altura_do_foco(tmp_path, lib, asked, got):
+    reader, *_ = build(tmp_path, lib, P1)
+    reader.set_focus_height(asked)
+    assert reader.prefs["focus_height"] == got
+
+
+def test_R15_altura_do_foco_arredonda_a_centesimos(tmp_path, lib):
+    reader, *_ = build(tmp_path, lib, P1)
+    reader.set_focus_height(0.456789)
+    assert reader.prefs["focus_height"] == 0.46
+
+
+def test_R15_uma_altura_so_para_todos_os_modos(tmp_path, lib):
+    reader, *_ = build(tmp_path, lib, P1)
+    reader.set_focus_height(0.3)
+    reader.toggle_full()
+    assert reader.prefs["focus_height"] == 0.3
+    reader.set_focus_height(0.7)
+    reader.toggle_full()
+    assert reader.prefs["focus_height"] == 0.7

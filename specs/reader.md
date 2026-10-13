@@ -32,7 +32,7 @@ com um tocador falso.
   imediatamente após um pulo.
 - **R8 — Preferências** (tamanho da fonte, cor do fundo, imagem de fundo, opacidade do
   fundo, cor do texto, opacidade do texto, janela fixa, cliques atravessando, posição e
-  tamanho da janela, modo completo e zoom da página, **C11**–**C15** em
+  tamanho da janela, altura do foco (**R15**), modo completo e zoom da página, **C11**–**C15** em
   [completo.md](completo.md)) são salvas e
   restauradas nas próximas sessões. A fonte fica entre 12 e 64 pontos, a opacidade do fundo
   entre 0 e 1, e a opacidade do texto entre 0,2 e 1 (abaixo disso o texto sumiria; para
@@ -69,3 +69,11 @@ com um tocador falso.
 - **R14 — Capítulo da imagem.** O capítulo de uma imagem é o do texto narrado logo antes
   dela: uma seção do EPUB que só tem uma ilustração pertence ao capítulo anterior. Uma
   imagem só fica à mostra (**R5**) enquanto a palavra atual está no capítulo dela.
+- **R15 — Altura do foco.** A linha da palavra atual fica a uma altura escolhida pela
+  pessoa, dada como fração da altura da área do texto, de cima para baixo: perto de 0 mostra
+  mais texto ainda por ler, perto de 1 mostra mais texto já lido, e 0,5 é o meio. Começa em
+  0,4 e fica entre 0,2 e 0,75, para a linha nunca cair na borda esmaecida (**J4**), sempre
+  arredondada a centésimos. É uma só para o overlay, o modo vertical e o modo completo
+  (**J4**, **J20**). O modo de uma linha a ignora, porque nele só há a linha atual (**J14**).
+  Fica salva com as outras preferências (**R8**). Uma imagem em foco (**G10**) continua
+  centralizada, para aparecer inteira.

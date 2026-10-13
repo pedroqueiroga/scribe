@@ -1,5 +1,6 @@
 /* Modo completo (specs/completo.md, C13): vem depois das folhas de estilo do livro */
-.scribe-page { max-width: 44em; margin: 0 auto; padding: 40vh 2.4em 60vh; box-sizing: border-box; }
+.scribe-page { max-width: 44em; margin: 0 auto; box-sizing: border-box;
+               padding: calc(var(--scribe-focus, 0.4) * 100vh) 2.4em calc((1 - var(--scribe-focus, 0.4)) * 100vh); }
 .scribe-txt { font-family: Georgia, "Noto Serif", serif; font-size: 1.15rem; line-height: 1.6; }
 .scribe-txt p { white-space: pre-wrap; margin: 0 0 1em; }
 .scribe-txt h2 { white-space: pre-wrap; margin: 2.2em 0 1em; font-size: 1.5em; }

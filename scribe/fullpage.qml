@@ -28,6 +28,9 @@ WebEngineView {
                       + reader.synced + "," + animated + ")")
     }
     function resync() { if (ready) runJavaScript("scribe.resync()") }
+    // R15: altura do foco (a do arrasto da alça, J23, enquanto ele dura)
+    property real focusHeight: win.focusHeight
+    onFocusHeightChanged: if (ready) runJavaScript("scribe.setAnchor(" + focusHeight + ")")
     function focusOn(row) { if (ready) runJavaScript("scribe.setFocus(" + row + ")") }
 
     // J11: antes de destruir a view, esvazia a página (destruir o livro inteiro trava)
@@ -47,6 +50,7 @@ WebEngineView {
         const m = message.slice(7)
         if (m === "ready") {                  // J21: abre já na palavra atual
             ready = true
+            runJavaScript("scribe.setAnchor(" + focusHeight + ")")
             push(false)
             focusOn(reader.focusRow)
         } else if (m === "browse") {

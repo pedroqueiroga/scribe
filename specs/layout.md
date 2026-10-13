@@ -48,6 +48,6 @@ da janela. O comportamento visual está em **J18** ([janela.md](janela.md)).
 - **G10 — Foco na imagem.** De 1 s antes da hora de uma imagem (a mesma antecedência do
   **R5**) até começar a primeira palavra narrada depois dela, a imagem é o **foco**. No modo
   vertical, enquanto isso a rolagem centraliza a imagem na janela, em vez de manter a linha
-  da palavra atual a 40% da altura (**J4**). Quando a palavra seguinte começa, o foco volta
+  da palavra atual na altura do foco (**J4**, **R15**). Quando a palavra seguinte começa, o foco volta
   ao texto. Se nenhuma palavra narrada vem depois, o foco dura o tempo do **R5**. O foco
   depende só da posição, como no **R5**: um pulo para dentro do intervalo também o dá.

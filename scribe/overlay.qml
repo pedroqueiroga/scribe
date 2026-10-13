@@ -21,6 +21,11 @@ Window {
     // J19: modo completo, a página do livro no lugar do overlay
     readonly property bool full: reader.fullMode
     property bool browsing: false          // J4: texto solto da narração (roda do mouse)
+    // R15/J23: altura do foco; enquanto a alça é arrastada vale o valor do arrasto, que só
+    // é salvo ao soltar
+    property real dragFocus: -1
+    readonly property real focusHeight: dragFocus >= 0 ? dragFocus : reader.focusHeight
+    onFocusHeightChanged: list.requestFollow(false)
     function resync() {                    // J4: volta o texto para a palavra narrada
         browsing = false
         list.requestFollow(true)
@@ -401,8 +406,8 @@ Window {
             interactive: false
             model: blocks
             spacing: 0
-            header: Item { height: win.oneline ? 0 : list.height * 0.40 }
-            footer: Item { height: win.oneline ? list.height : list.height * 0.60 }
+            header: Item { height: win.oneline ? 0 : list.height * win.focusHeight }   // R15
+            footer: Item { height: win.oneline ? list.height : list.height * (1 - win.focusHeight) }
 
             // A rolagem é animada à mão, quadro a quadro: se um parágrafo acima muda de altura
             // no meio do caminho (karaokê, peso da fonte, delegate recriado), o deslocamento é
@@ -452,7 +457,7 @@ Window {
                 if (scrollAnim.running) { scrollAnim.from += d; scrollAnim.to += d }
             }
 
-            // J4: mantém a linha da palavra atual a 40% da altura
+            // J4: mantém a linha da palavra atual na altura do foco (R15)
             // Nunca reposiciona a lista de dentro de um tratador de delegate: isso pode destruir
             // o delegate no meio do próprio código (segfault em pulos rápidos). Toda chamada é
             // adiada para o laço de eventos e várias no mesmo ciclo viram uma só.
@@ -477,7 +482,7 @@ Window {
                     animated = false
                     if (!item) return
                 }
-                const anchorY = win.oneline ? 0 : height * 0.40
+                const anchorY = win.oneline ? 0 : height * win.focusHeight
                 const target = img ? item.y + (item.height - height) / 2
                                    : item.y + item.lineY - anchorY
                 remember(r)
@@ -1118,6 +1123,78 @@ Window {
             }
             HoverHandler { id: thumbHover; cursorShape: Qt.PointingHandCursor }
             TapHandler { onTapped: win.imgPinned = !win.imgPinned }
+        }
+
+        // ------------------------------------------------------------ altura do foco (J23)
+        // marcador na parede esquerda, na altura da linha atual; arrastar move o foco (R15)
+        Rectangle {
+            id: focusGuide
+            z: 3
+            visible: focusMa.pressed
+            x: focusHandle.x + focusHandle.width + 2
+            width: parent.width - x - win.pad
+            y: focusHandle.y + focusHandle.height / 2
+            height: 1
+            color: win.ribbon
+            opacity: 0.35
+        }
+        Item {
+            id: focusHandle
+            objectName: "focusHandle"
+            z: 4
+            readonly property string tip: "altura do foco · " + Math.round(win.focusHeight * 100) + "%"
+            // área onde o foco é medido: a lista no overlay, a página no modo completo
+            readonly property real areaY: win.full ? page.y : list.y
+            readonly property real areaH: win.full ? page.height : list.height
+            // meia linha abaixo do topo da linha seguida
+            readonly property real half: win.full ? 14 * reader.zoom : win.lineH / 2
+            visible: !win.oneline && !reader.passClicks
+            enabled: visible
+            opacity: focusMa.pressed || focusMa.containsMouse ? 1 : win.barShown ? 0.6 : 0
+            Behavior on opacity { NumberAnimation { duration: 180 } }
+            width: 14; height: 22
+            x: (win.pad - 8 - width) / 2           // no vão entre a parede e a fita
+            y: areaY + areaH * win.focusHeight + half - height / 2
+            Shape {                                // ponta de seta para a direita
+                anchors.centerIn: parent
+                width: 8; height: 12
+                preferredRendererType: Shape.CurveRenderer
+                ShapePath {
+                    strokeColor: "transparent"; fillColor: win.ribbon
+                    startX: 0; startY: 0
+                    PathLine { x: 8; y: 6 }
+                    PathLine { x: 0; y: 12 }
+                    PathLine { x: 0; y: 0 }
+                }
+            }
+            MouseArea {
+                id: focusMa
+                anchors.fill: parent
+                anchors.margins: -4
+                hoverEnabled: true
+                preventStealing: true
+                cursorShape: Qt.SizeVerCursor
+                onContainsMouseChanged: win.hoverTip(focusHandle, containsMouse && !pressed)
+                property real grab: 0
+                onPressed: (m) => {
+                    win.hoverTip(focusHandle, false)
+                    grab = mapToItem(focusHandle.parent, 0, m.y).y - focusHandle.y
+                    win.dragFocus = win.focusHeight
+                }
+                onPositionChanged: (m) => {
+                    if (!pressed) return
+                    const y = mapToItem(focusHandle.parent, 0, m.y).y - grab
+                              + focusHandle.height / 2 - focusHandle.half
+                    const f = (y - focusHandle.areaY) / focusHandle.areaH
+                    win.dragFocus = Math.max(0.2, Math.min(0.75, Math.round(f * 100) / 100))
+                }
+                onReleased: {
+                    if (win.dragFocus >= 0) reader.setFocusHeight(win.dragFocus)
+                    win.dragFocus = -1
+                }
+                onCanceled: win.dragFocus = -1
+                onDoubleClicked: reader.setFocusHeight(0.4)
+            }
         }
 
         // ------------------------------------------------------------ soltar (J3)
