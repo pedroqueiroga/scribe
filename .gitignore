@@ -5,4 +5,5 @@ __pycache__/
 *.epub
 *.m4b
 *.mp3
+*.mp4
 .pytest_cache/

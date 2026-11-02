@@ -12,6 +12,7 @@ dependencies = [
   "num2words",
   "PySide6>=6.8,!=6.12.0",  # 6.12.0: Signal.emit vaza referências do True (specs/plataforma.md)
   "pynput",
+  "python-mpv",  # precisa da libmpv2 do sistema
 ]
 
 [project.scripts]
