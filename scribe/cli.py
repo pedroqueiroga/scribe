@@ -29,7 +29,7 @@ def _transcribe_all(entry: dict, cache: Path, language: str, model_size: str):
     def report(msg):
         if msg["type"] == "segment":
             done = sum(b - a for a, b in store.intervals)
-            print(f"\r[transcrição] {done / duration:6.1%}", end="", file=sys.stderr, flush=True)
+            print(f"\r[sincronizando] {done / duration:6.1%}", end="", file=sys.stderr, flush=True)
 
     worker.transcribe_loop(store, duration, lambda: [], whisper, report)
     print(file=sys.stderr)
@@ -50,7 +50,7 @@ def cmd_list(args):
     from .library import Library
     rows = Library().books()
     if not rows:
-        print("Nenhum livro ainda. Comece com: scribe play livro.epub audio.m4b")
+        print("A biblioteca está vazia. Comece com: scribe play texto.epub audio.m4b")
         return
     for r in rows:
         t = int(r["position"])
@@ -74,27 +74,27 @@ def cmd_play(args):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog="scribe", description="EPUB + audiobook sincronizados")
+    ap = argparse.ArgumentParser(prog="scribe", description="áudio e texto sincronizados, palavra por palavra")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    pl = sub.add_parser("play", help="abre o livro (arquivos, pasta, nome ou número)")
-    pl.add_argument("paths", nargs="*", help="livro.epub audio.m4b | pasta | nome | número")
-    pl.add_argument("--model", default="small", help="modelo do whisper (small, medium…)")
+    pl = sub.add_parser("play", help="abre um texto com o áudio (arquivos, pasta, nome ou número)")
+    pl.add_argument("paths", nargs="*", help="texto.epub audio.m4b | pasta | nome | número")
+    pl.add_argument("--model", default="small", help="precisão da sincronia: small (padrão) ou medium, mais lento")
     pl.add_argument("--oneline", action="store_true",
-                    help="abre no modo de uma linha (janela baixa, só a linha narrada)")
+                    help="abre no modo de uma linha (janela baixa, só a linha falada)")
     pl.add_argument("--full", action="store_true",
-                    help="abre no modo completo (o livro inteiro, como num leitor de e-book)")
+                    help="abre no modo completo (o texto inteiro, como num leitor de e-book)")
     pl.set_defaults(func=cmd_play)
 
-    ls = sub.add_parser("list", help="mostra os livros registrados")
+    ls = sub.add_parser("list", help="mostra a biblioteca")
     ls.set_defaults(func=cmd_list)
 
-    p = sub.add_parser("prepare", help="transcreve o livro inteiro de antemão, sem janela")
+    p = sub.add_parser("prepare", help="sincroniza o áudio inteiro de antemão, sem janela")
     p.add_argument("paths", nargs="*")
     p.add_argument("--model", default="small")
     p.set_defaults(func=cmd_prepare)
 
-    c = sub.add_parser("check", help="relatório de qualidade do alinhamento")
+    c = sub.add_parser("check", help="mostra como o texto e o áudio estão batendo")
     c.add_argument("paths", nargs="*")
     c.add_argument("-v", "--verbose", action="store_true")
     c.set_defaults(func=cmd_check)
